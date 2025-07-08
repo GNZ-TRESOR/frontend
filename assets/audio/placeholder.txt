@@ -1,0 +1,2 @@
+# Placeholder file for audio directory
+# This ensures the directory exists for Flutter web builds
