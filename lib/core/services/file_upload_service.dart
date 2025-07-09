@@ -13,7 +13,7 @@ class FileUploadService extends ChangeNotifier {
   FileUploadService._internal();
 
   // Configuration
-  static const String baseUrl = 'http://localhost:8080/api/v1';
+  static const String baseUrl = 'http://localhost:8080';
   static const int maxFileSize = 10 * 1024 * 1024; // 10MB
   static const List<String> allowedImageTypes = [
     'jpg',
@@ -101,7 +101,7 @@ class FileUploadService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        final fileUrl = responseData['data']['fileUrl'] as String;
+        final fileUrl = responseData['data']['url'] as String;
 
         // Save uploaded file info
         final uploadedFile = UploadedFile(
@@ -189,7 +189,7 @@ class FileUploadService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        final fileUrl = responseData['data']['fileUrl'] as String;
+        final fileUrl = responseData['data']['url'] as String;
 
         // Save uploaded file info
         final uploadedFile = UploadedFile(

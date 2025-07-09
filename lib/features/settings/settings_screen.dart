@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/language_service.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../widgets/voice_button.dart';
 import 'privacy_settings_screen.dart';
 import 'notification_settings_screen.dart';
@@ -10,6 +11,7 @@ import 'account_settings_screen.dart';
 import 'language_selection_screen.dart';
 import 'database_config_screen.dart';
 import 'backend_test_screen.dart';
+import 'theme_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -316,12 +318,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildThemeSelector(bool isTablet) {
-    return ListTile(
-      leading: Icon(Icons.brightness_6, color: AppTheme.primaryColor),
-      title: const Text('Insanganyamatsiko'),
-      subtitle: Text(_getThemeLabel(_selectedTheme)),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _showThemeDialog(),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return ListTile(
+          leading: Icon(
+            themeProvider.currentThemeIcon,
+            color: AppTheme.primaryColor,
+          ),
+          title: const Text('Igenamiterere'),
+          subtitle: Text(themeProvider.currentThemeName),
+          trailing: const Icon(Icons.chevron_right),
+          onTap:
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ThemeSettingsScreen(),
+                ),
+              ),
+        );
+      },
     );
   }
 

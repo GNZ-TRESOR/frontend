@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../widgets/voice_button.dart';
 import '../../widgets/ai_assistant_fab.dart';
 import '../../widgets/backend_status_widget.dart';
+import '../../widgets/theme_toggle_button.dart';
 import '../contraception/contraception_management_screen.dart';
 import '../health/health_tracking_screen.dart';
 import '../appointments/appointment_booking_screen.dart';
@@ -240,6 +241,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Action Buttons
                   Row(
                     children: [
+                      ThemeToggleButton(
+                        iconSize: isTablet ? 24 : 20,
+                        padding: EdgeInsets.all(isTablet ? 12 : 10),
+                      ),
+                      SizedBox(width: AppTheme.spacing8),
                       _buildActionButton(
                         Icons.notifications_rounded,
                         onPressed: () {},

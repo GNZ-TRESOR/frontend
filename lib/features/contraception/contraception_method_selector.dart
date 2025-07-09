@@ -15,10 +15,12 @@ class ContraceptionMethodSelector extends StatefulWidget {
   });
 
   @override
-  State<ContraceptionMethodSelector> createState() => _ContraceptionMethodSelectorState();
+  State<ContraceptionMethodSelector> createState() =>
+      _ContraceptionMethodSelectorState();
 }
 
-class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelector> {
+class _ContraceptionMethodSelectorState
+    extends State<ContraceptionMethodSelector> {
   ContraceptionType? _selectedType;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -30,8 +32,16 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
       description: 'Imiti ifatwa buri munsi',
       effectiveness: 91.0,
       duration: 'Buri munsi',
-      pros: ['Yoroshye gukoresha', 'Irashobora guhagarika vuba', 'Igabanya ububabare bw\'imihango'],
-      cons: ['Igomba kwibukwa buri munsi', 'Ingaruka z\'imiti', 'Ntikurinda indwara'],
+      pros: [
+        'Yoroshye gukoresha',
+        'Irashobora guhagarika vuba',
+        'Igabanya ububabare bw\'imihango',
+      ],
+      cons: [
+        'Igomba kwibukwa buri munsi',
+        'Ingaruka z\'imiti',
+        'Ntikurinda indwara',
+      ],
       suitableFor: ['Abakobwa bakuru', 'Abashaka gukumira inda by\'agateganyo'],
       icon: Icons.medication_rounded,
       color: AppTheme.primaryColor,
@@ -42,9 +52,20 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
       description: 'Igikoresho gishyirwa mu nyababyeyi',
       effectiveness: 99.2,
       duration: '3-10 imyaka',
-      pros: ['Ikora igihe kinini', 'Ntikenewe kwibukwa', 'Irashobora gukurwa vuba'],
-      cons: ['Ikenewe umuganga', 'Irashobora guteza ububabare', 'Igiciro kinini'],
-      suitableFor: ['Abashaka gukumira inda igihe kinini', 'Abatashaka kwibuka buri munsi'],
+      pros: [
+        'Ikora igihe kinini',
+        'Ntikenewe kwibukwa',
+        'Irashobora gukurwa vuba',
+      ],
+      cons: [
+        'Ikenewe umuganga',
+        'Irashobora guteza ububabare',
+        'Igiciro kinini',
+      ],
+      suitableFor: [
+        'Abashaka gukumira inda igihe kinini',
+        'Abatashaka kwibuka buri munsi',
+      ],
       icon: Icons.device_hub_rounded,
       color: AppTheme.secondaryColor,
     ),
@@ -55,8 +76,15 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
       effectiveness: 99.95,
       duration: '3 imyaka',
       pros: ['Ikora cyane', 'Ntikenewe kwibukwa', 'Irashobora gukurwa vuba'],
-      cons: ['Ikenewe umuganga', 'Irashobora guhindura imihango', 'Igiciro kinini'],
-      suitableFor: ['Abashaka gukumira inda igihe kinini', 'Abatashaka kwibuka buri munsi'],
+      cons: [
+        'Ikenewe umuganga',
+        'Irashobora guhindura imihango',
+        'Igiciro kinini',
+      ],
+      suitableFor: [
+        'Abashaka gukumira inda igihe kinini',
+        'Abatashaka kwibuka buri munsi',
+      ],
       icon: Icons.linear_scale_rounded,
       color: AppTheme.accentColor,
     ),
@@ -66,9 +94,20 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
       description: 'Urushinge ruterwa buri mezi atatu',
       effectiveness: 94.0,
       duration: '3 amezi',
-      pros: ['Ntikenewe kwibukwa buri munsi', 'Irashobora guhagarika imihango', 'Ryoroshye gukoresha'],
-      cons: ['Ikenewe umuganga', 'Irashobora gutinda gusubira mu buzima', 'Ingaruka z\'imiti'],
-      suitableFor: ['Abatashaka kwibuka buri munsi', 'Abashaka guhagarika imihango'],
+      pros: [
+        'Ntikenewe kwibukwa buri munsi',
+        'Irashobora guhagarika imihango',
+        'Ryoroshye gukoresha',
+      ],
+      cons: [
+        'Ikenewe umuganga',
+        'Irashobora gutinda gusubira mu buzima',
+        'Ingaruka z\'imiti',
+      ],
+      suitableFor: [
+        'Abatashaka kwibuka buri munsi',
+        'Abashaka guhagarika imihango',
+      ],
       icon: Icons.vaccines_rounded,
       color: AppTheme.warningColor,
     ),
@@ -79,7 +118,11 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
       effectiveness: 82.0,
       duration: 'Buri gihe',
       pros: ['Ikurinda indwara', 'Iboneka vuba', 'Nta ngaruka z\'imiti'],
-      cons: ['Igomba gukoreshwa buri gihe', 'Irashobora gucika', 'Igabanya ubwoba'],
+      cons: [
+        'Igomba gukoreshwa buri gihe',
+        'Irashobora gucika',
+        'Igabanya ubwoba',
+      ],
       suitableFor: ['Abantu bose', 'Abashaka kurinda indwara'],
       icon: Icons.shield_rounded,
       color: AppTheme.successColor,
@@ -100,7 +143,8 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
 
   List<ContraceptionMethodInfo> get _filteredMethods {
     return _methods.where((method) {
-      final matchesSearch = method.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+      final matchesSearch =
+          method.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           method.description.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesType = _selectedType == null || method.type == _selectedType;
       return matchesSearch && matchesType;
@@ -115,11 +159,13 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
       _selectMethod(ContraceptionType.iud);
     } else if (lowerCommand.contains('implant')) {
       _selectMethod(ContraceptionType.implant);
-    } else if (lowerCommand.contains('urushinge') || lowerCommand.contains('injection')) {
+    } else if (lowerCommand.contains('urushinge') ||
+        lowerCommand.contains('injection')) {
       _selectMethod(ContraceptionType.injection);
     } else if (lowerCommand.contains('condom')) {
       _selectMethod(ContraceptionType.condom);
-    } else if (lowerCommand.contains('kamere') || lowerCommand.contains('natural')) {
+    } else if (lowerCommand.contains('kamere') ||
+        lowerCommand.contains('natural')) {
       _selectMethod(ContraceptionType.naturalFamilyPlanning);
     }
   }
@@ -134,13 +180,14 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _MethodDetailsSheet(
-        methodInfo: methodInfo,
-        onSelect: () {
-          Navigator.of(context).pop();
-          _confirmMethodSelection(methodInfo);
-        },
-      ),
+      builder:
+          (context) => _MethodDetailsSheet(
+            methodInfo: methodInfo,
+            onSelect: () {
+              Navigator.of(context).pop();
+              _confirmMethodSelection(methodInfo);
+            },
+          ),
     );
   }
 
@@ -178,15 +225,14 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
         children: [
           // Search and filter
           _buildSearchAndFilter(isTablet),
-          
+
           // Methods list
-          Expanded(
-            child: _buildMethodsList(isTablet),
-          ),
+          Expanded(child: _buildMethodsList(isTablet)),
         ],
       ),
       floatingActionButton: VoiceButton(
-        prompt: 'Vuga: "Imiti" kugira ngo uhitemo imiti, "IUD", "Implant", "Urushinge", "Condom", cyangwa "Kamere" kugira ngo uhitemo uburyo',
+        prompt:
+            'Vuga: "Imiti" kugira ngo uhitemo imiti, "IUD", "Implant", "Urushinge", "Condom", cyangwa "Kamere" kugira ngo uhitemo uburyo',
         onResult: _handleVoiceCommand,
         tooltip: 'Koresha ijwi guhitamo',
       ),
@@ -195,7 +241,9 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
 
   Widget _buildSearchAndFilter(bool isTablet) {
     return Container(
-      padding: EdgeInsets.all(isTablet ? AppTheme.spacing20 : AppTheme.spacing16),
+      padding: EdgeInsets.all(
+        isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         boxShadow: AppTheme.softShadow,
@@ -221,9 +269,9 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
               fillColor: AppTheme.backgroundColor,
             ),
           ),
-          
+
           SizedBox(height: AppTheme.spacing12),
-          
+
           // Filter chips
           SizedBox(
             height: isTablet ? 50 : 40,
@@ -233,23 +281,32 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
                 _buildFilterChip('Byose', null, isTablet),
                 _buildFilterChip('Imiti', ContraceptionType.pill, isTablet),
                 _buildFilterChip('IUD', ContraceptionType.iud, isTablet),
-                _buildFilterChip('Implant', ContraceptionType.implant, isTablet),
-                _buildFilterChip('Urushinge', ContraceptionType.injection, isTablet),
+                _buildFilterChip(
+                  'Implant',
+                  ContraceptionType.implant,
+                  isTablet,
+                ),
+                _buildFilterChip(
+                  'Urushinge',
+                  ContraceptionType.injection,
+                  isTablet,
+                ),
                 _buildFilterChip('Condom', ContraceptionType.condom, isTablet),
               ],
             ),
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms).slideY(
-      begin: -0.3,
-      duration: 600.ms,
-    );
+    ).animate().fadeIn(delay: 200.ms).slideY(begin: -0.3, duration: 600.ms);
   }
 
-  Widget _buildFilterChip(String label, ContraceptionType? type, bool isTablet) {
+  Widget _buildFilterChip(
+    String label,
+    ContraceptionType? type,
+    bool isTablet,
+  ) {
     final isSelected = _selectedType == type;
-    
+
     return Container(
       margin: EdgeInsets.only(right: AppTheme.spacing8),
       child: FilterChip(
@@ -284,9 +341,7 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
             SizedBox(height: AppTheme.spacing16),
             Text(
               'Nta buryo buboneka',
-              style: AppTheme.bodyLarge.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+              style: AppTheme.bodyLarge.copyWith(color: AppTheme.textTertiary),
             ),
           ],
         ),
@@ -294,7 +349,9 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
     }
 
     return ListView.builder(
-      padding: EdgeInsets.all(isTablet ? AppTheme.spacing20 : AppTheme.spacing16),
+      padding: EdgeInsets.all(
+        isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
+      ),
       itemCount: _filteredMethods.length,
       itemBuilder: (context, index) {
         final method = _filteredMethods[index];
@@ -303,104 +360,114 @@ class _ContraceptionMethodSelectorState extends State<ContraceptionMethodSelecto
     );
   }
 
-  Widget _buildMethodCard(ContraceptionMethodInfo method, bool isTablet, int index) {
+  Widget _buildMethodCard(
+    ContraceptionMethodInfo method,
+    bool isTablet,
+    int index,
+  ) {
     return Container(
-      margin: EdgeInsets.only(bottom: AppTheme.spacing16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        boxShadow: AppTheme.softShadow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showMethodDetails(method),
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          child: Padding(
-            padding: EdgeInsets.all(isTablet ? AppTheme.spacing24 : AppTheme.spacing20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          margin: EdgeInsets.only(bottom: AppTheme.spacing16),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            boxShadow: AppTheme.softShadow,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showMethodDetails(method),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              child: Padding(
+                padding: EdgeInsets.all(
+                  isTablet ? AppTheme.spacing24 : AppTheme.spacing20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(isTablet ? AppTheme.spacing16 : AppTheme.spacing12),
-                      decoration: BoxDecoration(
-                        color: method.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                      ),
-                      child: Icon(
-                        method.icon,
-                        color: method.color,
-                        size: isTablet ? 32 : 24,
-                      ),
-                    ),
-                    SizedBox(width: AppTheme.spacing16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            method.name,
-                            style: AppTheme.headingSmall.copyWith(
-                              fontSize: isTablet ? 20 : 18,
-                              fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(
+                            isTablet ? AppTheme.spacing16 : AppTheme.spacing12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: method.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 16 : 12,
                             ),
                           ),
-                          SizedBox(height: AppTheme.spacing4),
-                          Text(
-                            method.description,
-                            style: AppTheme.bodyMedium.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
+                          child: Icon(
+                            method.icon,
+                            color: method.color,
+                            size: isTablet ? 32 : 24,
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(width: AppTheme.spacing16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                method.name,
+                                style: AppTheme.headingSmall.copyWith(
+                                  fontSize: isTablet ? 20 : 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: AppTheme.spacing4),
+                              Text(
+                                method.description,
+                                style: AppTheme.bodyMedium.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: AppTheme.textTertiary,
+                          size: isTablet ? 20 : 16,
+                        ),
+                      ],
                     ),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      color: AppTheme.textTertiary,
-                      size: isTablet ? 20 : 16,
+
+                    SizedBox(height: AppTheme.spacing16),
+
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          'Ubushobozi: ${method.effectiveness}%',
+                          method.color,
+                          isTablet,
+                        ),
+                        SizedBox(width: AppTheme.spacing8),
+                        _buildInfoChip(
+                          'Igihe: ${method.duration}',
+                          AppTheme.textSecondary,
+                          isTablet,
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: AppTheme.spacing12),
+
+                    Text(
+                      'Bikwiye: ${method.suitableFor.join(", ")}',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppTheme.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ],
                 ),
-                
-                SizedBox(height: AppTheme.spacing16),
-                
-                Row(
-                  children: [
-                    _buildInfoChip(
-                      'Ubushobozi: ${method.effectiveness}%',
-                      method.color,
-                      isTablet,
-                    ),
-                    SizedBox(width: AppTheme.spacing8),
-                    _buildInfoChip(
-                      'Igihe: ${method.duration}',
-                      AppTheme.textSecondary,
-                      isTablet,
-                    ),
-                  ],
-                ),
-                
-                SizedBox(height: AppTheme.spacing12),
-                
-                Text(
-                  'Bikwiye: ${method.suitableFor.join(", ")}',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    ).animate(delay: (index * 100).ms).fadeIn().slideX(
-      begin: -0.3,
-      duration: 600.ms,
-    );
+        )
+        .animate(delay: (index * 100).ms)
+        .fadeIn()
+        .slideX(begin: -0.3, duration: 600.ms);
   }
 
   Widget _buildInfoChip(String text, Color color, bool isTablet) {
@@ -429,10 +496,7 @@ class _MethodDetailsSheet extends StatelessWidget {
   final ContraceptionMethodInfo methodInfo;
   final VoidCallback onSelect;
 
-  const _MethodDetailsSheet({
-    required this.methodInfo,
-    required this.onSelect,
-  });
+  const _MethodDetailsSheet({required this.methodInfo, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -441,7 +505,7 @@ class _MethodDetailsSheet extends StatelessWidget {
 
     return Container(
       height: size.height * 0.8,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.backgroundColor,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(32),
@@ -460,11 +524,13 @@ class _MethodDetailsSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Content
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(isTablet ? AppTheme.spacing32 : AppTheme.spacing24),
+              padding: EdgeInsets.all(
+                isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -472,10 +538,14 @@ class _MethodDetailsSheet extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: EdgeInsets.all(isTablet ? AppTheme.spacing20 : AppTheme.spacing16),
+                        padding: EdgeInsets.all(
+                          isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
+                        ),
                         decoration: BoxDecoration(
                           color: methodInfo.color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
+                          borderRadius: BorderRadius.circular(
+                            isTablet ? 20 : 16,
+                          ),
                         ),
                         child: Icon(
                           methodInfo.icon,
@@ -506,9 +576,9 @@ class _MethodDetailsSheet extends StatelessWidget {
                       ),
                     ],
                   ),
-                  
+
                   SizedBox(height: AppTheme.spacing32),
-                  
+
                   // Effectiveness
                   _buildDetailSection(
                     'Ubushobozi',
@@ -517,9 +587,9 @@ class _MethodDetailsSheet extends StatelessWidget {
                     methodInfo.color,
                     isTablet,
                   ),
-                  
+
                   SizedBox(height: AppTheme.spacing24),
-                  
+
                   // Pros
                   _buildListSection(
                     'Inyungu',
@@ -528,9 +598,9 @@ class _MethodDetailsSheet extends StatelessWidget {
                     AppTheme.successColor,
                     isTablet,
                   ),
-                  
+
                   SizedBox(height: AppTheme.spacing24),
-                  
+
                   // Cons
                   _buildListSection(
                     'Ibibazo',
@@ -539,9 +609,9 @@ class _MethodDetailsSheet extends StatelessWidget {
                     AppTheme.warningColor,
                     isTablet,
                   ),
-                  
+
                   SizedBox(height: AppTheme.spacing24),
-                  
+
                   // Suitable for
                   _buildListSection(
                     'Bikwiye',
@@ -550,9 +620,9 @@ class _MethodDetailsSheet extends StatelessWidget {
                     AppTheme.infoColor,
                     isTablet,
                   ),
-                  
+
                   SizedBox(height: AppTheme.spacing32),
-                  
+
                   // Select button
                   SizedBox(
                     width: double.infinity,
@@ -561,7 +631,10 @@ class _MethodDetailsSheet extends StatelessWidget {
                       style: AppTheme.primaryButtonStyle.copyWith(
                         padding: WidgetStateProperty.all(
                           EdgeInsets.symmetric(
-                            vertical: isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
+                            vertical:
+                                isTablet
+                                    ? AppTheme.spacing20
+                                    : AppTheme.spacing16,
                           ),
                         ),
                       ),
@@ -583,23 +656,25 @@ class _MethodDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailSection(String title, String content, IconData icon, Color color, bool isTablet) {
+  Widget _buildDetailSection(
+    String title,
+    String content,
+    IconData icon,
+    Color color,
+    bool isTablet,
+  ) {
     return Container(
-      padding: EdgeInsets.all(isTablet ? AppTheme.spacing20 : AppTheme.spacing16),
+      padding: EdgeInsets.all(
+        isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: isTablet ? 24 : 20,
-          ),
+          Icon(icon, color: color, size: isTablet ? 24 : 20),
           SizedBox(width: AppTheme.spacing12),
           Expanded(
             child: Column(
@@ -613,10 +688,7 @@ class _MethodDetailsSheet extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: AppTheme.spacing4),
-                Text(
-                  content,
-                  style: AppTheme.bodyMedium,
-                ),
+                Text(content, style: AppTheme.bodyMedium),
               ],
             ),
           ),
@@ -625,17 +697,19 @@ class _MethodDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildListSection(String title, List<String> items, IconData icon, Color color, bool isTablet) {
+  Widget _buildListSection(
+    String title,
+    List<String> items,
+    IconData icon,
+    Color color,
+    bool isTablet,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: isTablet ? 24 : 20,
-            ),
+            Icon(icon, color: color, size: isTablet ? 24 : 20),
             SizedBox(width: AppTheme.spacing8),
             Text(
               title,
@@ -647,32 +721,29 @@ class _MethodDetailsSheet extends StatelessWidget {
           ],
         ),
         SizedBox(height: AppTheme.spacing12),
-        ...items.map((item) => Padding(
-          padding: EdgeInsets.only(bottom: AppTheme.spacing8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: isTablet ? 6 : 4,
-                height: isTablet ? 6 : 4,
-                margin: EdgeInsets.only(
-                  top: isTablet ? 8 : 6,
-                  right: AppTheme.spacing8,
+        ...items.map(
+          (item) => Padding(
+            padding: EdgeInsets.only(bottom: AppTheme.spacing8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: isTablet ? 6 : 4,
+                  height: isTablet ? 6 : 4,
+                  margin: EdgeInsets.only(
+                    top: isTablet ? 8 : 6,
+                    right: AppTheme.spacing8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(isTablet ? 3 : 2),
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(isTablet ? 3 : 2),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  item,
-                  style: AppTheme.bodyMedium,
-                ),
-              ),
-            ],
+                Expanded(child: Text(item, style: AppTheme.bodyMedium)),
+              ],
+            ),
           ),
-        )),
+        ),
       ],
     );
   }

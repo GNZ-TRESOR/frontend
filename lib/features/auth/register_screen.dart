@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/auth_service.dart';
+import '../../widgets/voice_button.dart';
+import '../main/main_screen.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -18,7 +21,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+  final AuthService _authService = AuthService();
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
@@ -39,9 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ugomba kwemera amabwiriza n\'amategeko'),
-        ),
+        const SnackBar(content: Text('Ugomba kwemera amabwiriza n\'amategeko')),
       );
       return;
     }
@@ -50,22 +52,80 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final nameParts = _nameController.text.trim().split(' ');
+      final firstName = nameParts.isNotEmpty ? nameParts.first : '';
+      final lastName =
+          nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
 
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Konti yawe yarakozwe neza! Nyura mu kwinjira.'),
-          backgroundColor: AppTheme.successColor,
-        ),
+      final result = await _authService.register(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: _phoneController.text.trim(),
+        role: _selectedRole,
       );
 
-      Navigator.of(context).pop();
+      if (mounted) {
+        if (result.isSuccess) {
+          // Successful registration - navigate to main screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Konti yawe yarakozwe neza!'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder:
+                  (context, animation, secondaryAnimation) =>
+                      const MainScreen(),
+              transitionsBuilder: (
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+              ) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                );
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+            ),
+          );
+        } else {
+          // Failed registration
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'Habaye ikosa mu gukora konti'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Registration error details: $e'); // Debug logging
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Habaye ikosa mu gukora konti: ${e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -93,26 +153,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          'Iyandikishe',
-          style: AppTheme.headingSmall,
-        ),
+        title: Text('Iyandikishe', style: AppTheme.headingSmall),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(isTablet ? AppTheme.spacing32 : AppTheme.spacing24),
+          padding: EdgeInsets.all(
+            isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
+          ),
           child: Column(
             children: [
               // Header
               _buildHeader(isTablet),
-              
+
               SizedBox(height: AppTheme.spacing32),
-              
+
               // Registration Form
               _buildRegistrationForm(isTablet),
-              
+
               SizedBox(height: AppTheme.spacing24),
-              
+
               // Login Link
               _buildLoginLink(isTablet),
             ],
@@ -127,33 +186,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         Text(
           'Kora konti nshya',
-          style: AppTheme.headingLarge.copyWith(
-            fontSize: isTablet ? 32 : 28,
-          ),
-        ).animate().fadeIn(delay: 200.ms).slideY(
-          begin: 0.3,
-          duration: 600.ms,
-        ),
-        
+          style: AppTheme.headingLarge.copyWith(fontSize: isTablet ? 32 : 28),
+        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3, duration: 600.ms),
+
         SizedBox(height: AppTheme.spacing8),
-        
+
         Text(
           'Uzuza amakuru akurikira kugira ngo ukore konti yawe',
-          style: AppTheme.bodyLarge.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: AppTheme.bodyLarge.copyWith(color: AppTheme.textSecondary),
           textAlign: TextAlign.center,
-        ).animate().fadeIn(delay: 400.ms).slideY(
-          begin: 0.3,
-          duration: 600.ms,
-        ),
+        ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.3, duration: 600.ms),
       ],
     );
   }
 
   Widget _buildRegistrationForm(bool isTablet) {
     return Container(
-      padding: EdgeInsets.all(isTablet ? AppTheme.spacing32 : AppTheme.spacing24),
+      padding: EdgeInsets.all(
+        isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
@@ -165,137 +216,142 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             // Name Field
             TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Amazina yawe',
-                hintText: 'Shyiramo amazina yawe yose',
-                prefixIcon: Icon(Icons.person_outlined),
-              ),
-              validator: AppValidation.validateName,
-            ).animate().fadeIn(delay: 600.ms).slideX(
-              begin: -0.3,
-              duration: 600.ms,
-            ),
-            
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Amazina yawe',
+                    hintText: 'Shyiramo amazina yawe yose',
+                    prefixIcon: Icon(Icons.person_outlined),
+                  ),
+                  validator: AppValidation.validateName,
+                )
+                .animate()
+                .fadeIn(delay: 600.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
             SizedBox(height: AppTheme.spacing20),
-            
+
             // Email Field
             TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Imeyili',
-                hintText: 'Shyiramo imeyili yawe',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-              validator: AppValidation.validateEmail,
-            ).animate().fadeIn(delay: 700.ms).slideX(
-              begin: -0.3,
-              duration: 600.ms,
-            ),
-            
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Imeyili',
+                    hintText: 'Shyiramo imeyili yawe',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: AppValidation.validateEmail,
+                )
+                .animate()
+                .fadeIn(delay: 700.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
             SizedBox(height: AppTheme.spacing20),
-            
+
             // Phone Field
             TextFormField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Nimero ya telefone',
-                hintText: 'Shyiramo nimero ya telefone',
-                prefixIcon: Icon(Icons.phone_outlined),
-              ),
-              validator: AppValidation.validatePhone,
-            ).animate().fadeIn(delay: 800.ms).slideX(
-              begin: -0.3,
-              duration: 600.ms,
-            ),
-            
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Nimero ya telefone',
+                    hintText: 'Shyiramo nimero ya telefone',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  validator: AppValidation.validatePhone,
+                )
+                .animate()
+                .fadeIn(delay: 800.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
             SizedBox(height: AppTheme.spacing20),
-            
+
             // Role Selection
             DropdownButtonFormField<String>(
-              value: _selectedRole,
-              decoration: const InputDecoration(
-                labelText: 'Uruhare rwawe',
-                prefixIcon: Icon(Icons.work_outlined),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: AppConstants.roleClient,
-                  child: Text('Umukiliya'),
-                ),
-                DropdownMenuItem(
-                  value: AppConstants.roleWorker,
-                  child: Text('Umukozi w\'ubuzima'),
-                ),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedRole = value!;
-                });
-              },
-            ).animate().fadeIn(delay: 900.ms).slideX(
-              begin: -0.3,
-              duration: 600.ms,
-            ),
-            
+                  value: _selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'Uruhare rwawe',
+                    prefixIcon: Icon(Icons.work_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: AppConstants.roleClient,
+                      child: Text('Umukiliya'),
+                    ),
+                    DropdownMenuItem(
+                      value: AppConstants.roleWorker,
+                      child: Text('Umukozi w\'ubuzima'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedRole = value!;
+                    });
+                  },
+                )
+                .animate()
+                .fadeIn(delay: 900.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
             SizedBox(height: AppTheme.spacing20),
-            
+
             // Password Field
             TextFormField(
-              controller: _passwordController,
-              obscureText: !_isPasswordVisible,
-              decoration: InputDecoration(
-                labelText: 'Ijambo ry\'ibanga',
-                hintText: 'Shyiramo ijambo ry\'ibanga',
-                prefixIcon: const Icon(Icons.lock_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                  controller: _passwordController,
+                  obscureText: !_isPasswordVisible,
+                  decoration: InputDecoration(
+                    labelText: 'Ijambo ry\'ibanga',
+                    hintText: 'Shyiramo ijambo ry\'ibanga',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _isPasswordVisible = !_isPasswordVisible;
-                    });
-                  },
-                ),
-              ),
-              validator: AppValidation.validatePassword,
-            ).animate().fadeIn(delay: 1000.ms).slideX(
-              begin: -0.3,
-              duration: 600.ms,
-            ),
-            
+                  validator: AppValidation.validatePassword,
+                )
+                .animate()
+                .fadeIn(delay: 1000.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
             SizedBox(height: AppTheme.spacing20),
-            
+
             // Confirm Password Field
             TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: !_isConfirmPasswordVisible,
-              decoration: InputDecoration(
-                labelText: 'Emeza ijambo ry\'ibanga',
-                hintText: 'Ongera ushyire ijambo ry\'ibanga',
-                prefixIcon: const Icon(Icons.lock_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isConfirmPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                  controller: _confirmPasswordController,
+                  obscureText: !_isConfirmPasswordVisible,
+                  decoration: InputDecoration(
+                    labelText: 'Emeza ijambo ry\'ibanga',
+                    hintText: 'Ongera ushyire ijambo ry\'ibanga',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isConfirmPasswordVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isConfirmPasswordVisible =
+                              !_isConfirmPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                    });
-                  },
-                ),
-              ),
-              validator: _validateConfirmPassword,
-            ).animate().fadeIn(delay: 1100.ms).slideX(
-              begin: -0.3,
-              duration: 600.ms,
-            ),
-            
+                  validator: _validateConfirmPassword,
+                )
+                .animate()
+                .fadeIn(delay: 1100.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
             SizedBox(height: AppTheme.spacing20),
-            
+
             // Terms and Conditions
             Row(
               children: [
@@ -335,58 +391,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ],
             ).animate().fadeIn(delay: 1200.ms),
-            
+
             SizedBox(height: AppTheme.spacing24),
-            
+
             // Register Button
             SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _register,
-                style: AppTheme.primaryButtonStyle.copyWith(
-                  padding: WidgetStateProperty.all(
-                    EdgeInsets.symmetric(
-                      vertical: isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
-                    ),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Text(
-                        AppStrings.register,
-                        style: AppTheme.labelLarge.copyWith(
-                          color: Colors.white,
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _register,
+                    style: AppTheme.primaryButtonStyle.copyWith(
+                      padding: WidgetStateProperty.all(
+                        EdgeInsets.symmetric(
+                          vertical:
+                              isTablet
+                                  ? AppTheme.spacing20
+                                  : AppTheme.spacing16,
                         ),
                       ),
-              ),
-            ).animate().fadeIn(delay: 1300.ms).scale(
-              begin: const Offset(0.8, 0.8),
-              duration: 600.ms,
-            ),
+                    ),
+                    child:
+                        _isLoading
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                            : Text(
+                              AppStrings.register,
+                              style: AppTheme.labelLarge.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
+                  ),
+                )
+                .animate()
+                .fadeIn(delay: 1300.ms)
+                .scale(begin: const Offset(0.8, 0.8), duration: 600.ms),
           ],
         ),
       ),
-    ).animate().fadeIn(delay: 600.ms).slideY(
-      begin: 0.3,
-      duration: 800.ms,
-    );
+    ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, duration: 800.ms);
   }
 
   Widget _buildLoginLink(bool isTablet) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          'Usanzwe ufite konti? ',
-          style: AppTheme.bodyMedium,
-        ),
+        Text('Usanzwe ufite konti? ', style: AppTheme.bodyMedium),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(

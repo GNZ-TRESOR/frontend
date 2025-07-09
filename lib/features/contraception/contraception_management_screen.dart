@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/contraception_model.dart';
+import '../../core/services/contraception_service.dart';
 import '../../widgets/voice_button.dart';
 import 'contraception_method_selector.dart';
 import 'emergency_contraception_screen.dart';
@@ -23,6 +24,7 @@ class _ContraceptionManagementScreenState
   List<ContraceptionReminder> _reminders = [];
   List<ContraceptionHistory> _history = [];
   bool _isLoading = true;
+  final ContraceptionService _contraceptionService = ContraceptionService();
 
   @override
   void initState() {
@@ -43,22 +45,25 @@ class _ContraceptionManagementScreenState
     });
 
     try {
-      // TODO: Load from API
-      await Future.delayed(const Duration(seconds: 1));
+      // Load current active contraception method from API
+      _currentMethod = await _contraceptionService.getActiveContraception();
 
-      _currentMethod = ContraceptionMethod(
-        id: '1',
-        type: ContraceptionType.pill,
-        name: 'Combined Oral Contraceptive',
-        startDate: DateTime.now().subtract(const Duration(days: 30)),
-        effectiveness: 99.7,
-        sideEffects: ['Nausea', 'Headache', 'Breast tenderness'],
-        instructions: 'Take one pill daily at the same time',
-        nextAppointment: DateTime.now().add(const Duration(days: 60)),
-        isActive: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        updatedAt: DateTime.now(),
-      );
+      // If no active method, create a sample one for demo
+      if (_currentMethod == null) {
+        _currentMethod = ContraceptionMethod(
+          id: '1',
+          type: ContraceptionType.pill,
+          name: 'Combined Oral Contraceptive',
+          startDate: DateTime.now().subtract(const Duration(days: 30)),
+          effectiveness: 99.7,
+          sideEffects: ['Nausea', 'Headache', 'Breast tenderness'],
+          instructions: 'Take one pill daily at the same time',
+          nextAppointment: DateTime.now().add(const Duration(days: 60)),
+          isActive: true,
+          createdAt: DateTime.now().subtract(const Duration(days: 30)),
+          updatedAt: DateTime.now(),
+        );
+      }
 
       _reminders = [
         ContraceptionReminder(

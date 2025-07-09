@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/voice_service.dart';
 import '../../core/services/audio_content_service.dart';
+import '../../core/services/health_tracking_service.dart';
 import '../../widgets/voice_button.dart';
 import '../../widgets/ai_assistant_fab.dart';
 import '../../core/models/health_record_model.dart';
@@ -19,6 +20,13 @@ class HealthTrackingScreen extends StatefulWidget {
 class _HealthTrackingScreenState extends State<HealthTrackingScreen> {
   int _selectedTab = 0;
   final DateTime _selectedDate = DateTime.now();
+  final HealthTrackingService _healthService = HealthTrackingService();
+
+  List<HealthRecord> _healthRecords = [];
+  Map<String, dynamic>? _healthStatistics;
+  Map<String, dynamic>? _currentCycle;
+  List<Map<String, dynamic>> _medications = [];
+  bool _isLoading = false;
 
   final List<String> _tabs = ['Imihango', 'Ubuzima', 'Imiti', 'Raporo'];
 
@@ -50,6 +58,38 @@ class _HealthTrackingScreenState extends State<HealthTrackingScreen> {
     ),
     CycleDay(date: DateTime.now(), type: CycleDayType.today),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHealthData();
+  }
+
+  Future<void> _loadHealthData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load health records
+      _healthRecords = await _healthService.getHealthRecords(limit: 50);
+
+      // Load health statistics
+      _healthStatistics = await _healthService.getHealthStatistics();
+
+      // Load current cycle
+      _currentCycle = await _healthService.getCurrentCycle();
+
+      // Load medications
+      _medications = await _healthService.getMedications();
+    } catch (e) {
+      print('Error loading health data: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   void _handleVoiceCommand(String command) {
     final lowerCommand = command.toLowerCase();

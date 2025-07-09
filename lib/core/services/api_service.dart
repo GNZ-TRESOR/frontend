@@ -103,6 +103,52 @@ abstract class ApiService {
   @DELETE('/medications/{id}')
   Future<void> deleteMedication(@Path('id') String id);
 
+  @GET('/medications/active')
+  Future<List<Map<String, dynamic>>> getActiveMedications();
+
+  // Contraception endpoints
+  @GET('/contraception')
+  Future<List<Map<String, dynamic>>> getContraceptionMethods(
+    @Query('userId') String? userId,
+  );
+
+  @POST('/contraception')
+  Future<Map<String, dynamic>> createContraceptionMethod(
+    @Body() Map<String, dynamic> request,
+  );
+
+  @PUT('/contraception/{id}')
+  Future<Map<String, dynamic>> updateContraceptionMethod(
+    @Path('id') String id,
+    @Body() Map<String, dynamic> request,
+  );
+
+  @DELETE('/contraception/{id}')
+  Future<void> deleteContraceptionMethod(@Path('id') String id);
+
+  @GET('/contraception/active')
+  Future<Map<String, dynamic>> getActiveContraception(
+    @Query('userId') String? userId,
+  );
+
+  @GET('/contraception/types')
+  Future<List<String>> getContraceptionTypes();
+
+  // Menstrual Cycle advanced endpoints
+  @GET('/menstrual-cycles/current')
+  Future<Map<String, dynamic>> getCurrentCycle(@Query('userId') String userId);
+
+  @GET('/menstrual-cycles/predictions')
+  Future<Map<String, dynamic>> getCyclePredictions(
+    @Query('userId') String userId,
+  );
+
+  // Health Records advanced endpoints
+  @GET('/health-records/statistics')
+  Future<Map<String, dynamic>> getHealthStatistics(
+    @Query('userId') String userId,
+  );
+
   // Appointments endpoints
   @GET('/appointments')
   Future<List<Appointment>> getAppointments(
@@ -155,6 +201,16 @@ abstract class ApiService {
   @GET('/conversations')
   Future<List<Map<String, dynamic>>> getConversations();
 
+  @GET('/messages/unread')
+  Future<Map<String, dynamic>> getUnreadMessages(
+    @Query('userId') String userId,
+  );
+
+  @GET('/messages/emergency')
+  Future<List<Map<String, dynamic>>> getEmergencyMessages(
+    @Query('userId') String userId,
+  );
+
   // Health Facilities endpoints
   @GET('/facilities')
   Future<List<HealthFacility>> getHealthFacilities(
@@ -169,6 +225,18 @@ abstract class ApiService {
 
   @GET('/facilities/{id}/health-workers')
   Future<List<User>> getFacilityHealthWorkers(@Path('id') String facilityId);
+
+  @GET('/facilities/nearby')
+  Future<List<HealthFacility>> getNearbyFacilities(
+    @Query('latitude') double latitude,
+    @Query('longitude') double longitude,
+    @Query('radius') double? radius,
+  );
+
+  @POST('/facilities')
+  Future<HealthFacility> createHealthFacility(
+    @Body() Map<String, dynamic> request,
+  );
 
   // Education endpoints
   @GET('/education/lessons')
@@ -186,6 +254,14 @@ abstract class ApiService {
   @POST('/education/progress')
   Future<Map<String, dynamic>> updateEducationProgress(
     @Body() Map<String, dynamic> request,
+  );
+
+  @GET('/education/popular')
+  Future<List<Map<String, dynamic>>> getPopularLessons();
+
+  @GET('/education/search')
+  Future<List<Map<String, dynamic>>> searchLessons(
+    @Query('query') String query,
   );
 
   // File upload endpoints
@@ -261,6 +337,22 @@ abstract class ApiService {
 
   @POST('/notifications/register-device')
   Future<void> registerDevice(@Body() Map<String, dynamic> request);
+
+  @POST('/notifications')
+  Future<Map<String, dynamic>> createNotification(
+    @Body() Map<String, dynamic> request,
+  );
+
+  @GET('/notifications/unread')
+  Future<Map<String, dynamic>> getUnreadNotifications(
+    @Query('userId') String userId,
+  );
+
+  @GET('/notifications/types/{type}')
+  Future<List<Map<String, dynamic>>> getNotificationsByType(
+    @Path('type') String type,
+    @Query('userId') String userId,
+  );
 }
 
 // Request/Response models

@@ -10,6 +10,7 @@ import 'core/services/rural_optimization_service.dart';
 import 'core/services/http_client.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/backend_sync_service_simple.dart' as sync;
+import 'core/providers/theme_provider.dart';
 import 'core/localization/custom_material_localizations.dart';
 import 'l10n/app_localizations_delegate.dart';
 import 'features/splash/splash_screen.dart';
@@ -42,6 +43,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => LanguageService()),
         ChangeNotifierProvider(create: (context) => VoiceService()),
         ChangeNotifierProvider(create: (context) => RuralOptimizationService()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
       ],
       child: const UbuzimaApp(),
     ),
@@ -81,12 +83,14 @@ class UbuzimaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<LanguageService>(
-      builder: (context, languageService, child) {
+    return Consumer2<LanguageService, ThemeProvider>(
+      builder: (context, languageService, themeProvider, child) {
         return MaterialApp(
           title: AppConstants.appName,
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeProvider.themeMode,
 
           // Localization support
           locale: languageService.currentLocale,

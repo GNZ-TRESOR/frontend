@@ -26,6 +26,49 @@ class HealthRecord {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory HealthRecord.fromJson(Map<String, dynamic> json) {
+    return HealthRecord(
+      id: json['id'] ?? '',
+      userId: json['userId'] ?? '',
+      healthWorkerId: json['healthWorkerId'] ?? '',
+      recordDate: DateTime.parse(
+        json['recordDate'] ?? DateTime.now().toIso8601String(),
+      ),
+      recordType: json['recordType'] ?? '',
+      type: HealthRecordType.values.firstWhere(
+        (e) => e.toString().split('.').last == json['type'],
+        orElse: () => HealthRecordType.consultation,
+      ),
+      data: json['data'] ?? {},
+      notes: json['notes'],
+      attachments: List<String>.from(json['attachments'] ?? []),
+      isConfidential: json['isConfidential'] ?? true,
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'healthWorkerId': healthWorkerId,
+      'recordDate': recordDate.toIso8601String(),
+      'recordType': recordType,
+      'type': type.toString().split('.').last,
+      'data': data,
+      'notes': notes,
+      'attachments': attachments,
+      'isConfidential': isConfidential,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
 }
 
 class MenstrualCycle {
