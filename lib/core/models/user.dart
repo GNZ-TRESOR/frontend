@@ -1,7 +1,6 @@
 /// User model for Ubuzima App
 class User {
   final int? id;
-  final String uuid;
   final String name;
   final String? email;
   final String? phone;
@@ -14,7 +13,6 @@ class User {
 
   const User({
     this.id,
-    required this.uuid,
     required this.name,
     this.email,
     this.phone,
@@ -29,7 +27,6 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as int?,
-      uuid: json['uuid'] as String? ?? json['id']?.toString(),
       name: json['name'] as String,
       email: json['email'] as String?,
       phone: json['phone'] as String?,
@@ -40,10 +37,8 @@ class User {
         orElse: () => UserRole.CLIENT,
       ),
       dateOfBirth:
-          json['dateOfBirth'] != null || json['date_of_birth'] != null
-              ? DateTime.parse(
-                (json['dateOfBirth'] ?? json['date_of_birth']) as String,
-              )
+          json['date_of_birth'] != null
+              ? DateTime.parse(json['date_of_birth'] as String)
               : null,
       gender: json['gender'] as String?,
       location: json['location'] as String?,
@@ -61,7 +56,6 @@ class User {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'uuid': uuid,
       'name': name,
       'email': email,
       'phone': phone,
@@ -76,7 +70,6 @@ class User {
 
   User copyWith({
     int? id,
-    String? uuid,
     String? name,
     String? email,
     String? phone,
@@ -89,7 +82,6 @@ class User {
   }) {
     return User(
       id: id ?? this.id,
-      uuid: uuid ?? this.uuid,
       name: name ?? this.name,
       email: email ?? this.email,
       phone: phone ?? this.phone,
@@ -104,7 +96,7 @@ class User {
 
   @override
   String toString() {
-    return 'User(id: $id, uuid: $uuid, name: $name, email: $email, phone: $phone, role: $role, dateOfBirth: $dateOfBirth, gender: $gender, location: $location, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'User(id: $id, name: $name, email: $email, phone: $phone, role: $role, dateOfBirth: $dateOfBirth, gender: $gender, location: $location, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -113,7 +105,6 @@ class User {
 
     return other is User &&
         other.id == id &&
-        other.uuid == uuid &&
         other.name == name &&
         other.email == email &&
         other.phone == phone &&
@@ -128,7 +119,6 @@ class User {
   @override
   int get hashCode {
     return id.hashCode ^
-        uuid.hashCode ^
         name.hashCode ^
         email.hashCode ^
         phone.hashCode ^

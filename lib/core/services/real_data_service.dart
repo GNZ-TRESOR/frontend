@@ -33,12 +33,11 @@ class RealDataService extends ChangeNotifier {
     try {
       final result = await _postgresService.query(
         '''
-        INSERT INTO users (uuid, name, email, phone, role, date_of_birth, gender, location)
-        VALUES (@uuid, @name, @email, @phone, @role, @dateOfBirth, @gender, @location)
+        INSERT INTO users (name, email, phone, role, date_of_birth, gender, location)
+        VALUES (@name, @email, @phone, @role, @dateOfBirth, @gender, @location)
         RETURNING *
         ''',
         parameters: {
-          'uuid': user.uuid,
           'name': user.name,
           'email': user.email,
           'phone': user.phone,
@@ -86,11 +85,11 @@ class RealDataService extends ChangeNotifier {
         SET name = @name, email = @email, phone = @phone, 
             date_of_birth = @dateOfBirth, gender = @gender, 
             location = @location, updated_at = CURRENT_TIMESTAMP
-        WHERE uuid = @uuid
+        WHERE id = @id
         RETURNING *
         ''',
         parameters: {
-          'uuid': user.uuid,
+          'id': user.id,
           'name': user.name,
           'email': user.email,
           'phone': user.phone,
@@ -126,7 +125,8 @@ class RealDataService extends ChangeNotifier {
         RETURNING *
         ''',
         parameters: {
-          'userUuid': record.userId.toString(), // Assuming userId is actually UUID
+          'userUuid':
+              record.userId.toString(), // Assuming userId is actually UUID
           'recordType': record.recordType,
           'date': record.date.toIso8601String(),
           'weight': record.weight,
@@ -148,7 +148,8 @@ class RealDataService extends ChangeNotifier {
   }
 
   /// Get health records for user
-  Future<List<HealthRecord>> getHealthRecords(String userUuid, {
+  Future<List<HealthRecord>> getHealthRecords(
+    String userUuid, {
     String? recordType,
     DateTime? startDate,
     DateTime? endDate,
@@ -160,7 +161,7 @@ class RealDataService extends ChangeNotifier {
         JOIN users u ON hr.user_id = u.id
         WHERE u.uuid = @userUuid
       ''';
-      
+
       Map<String, dynamic> parameters = {'userUuid': userUuid};
 
       if (recordType != null) {
@@ -185,8 +186,11 @@ class RealDataService extends ChangeNotifier {
         parameters['limit'] = limit;
       }
 
-      final result = await _postgresService.query(query, parameters: parameters);
-      
+      final result = await _postgresService.query(
+        query,
+        parameters: parameters,
+      );
+
       return result.map((json) => HealthRecord.fromJson(json)).toList();
     } catch (e) {
       debugPrint('❌ Get health records failed: $e');
@@ -278,7 +282,8 @@ class RealDataService extends ChangeNotifier {
   }
 
   /// Get appointments for user
-  Future<List<Appointment>> getAppointments(String userUuid, {
+  Future<List<Appointment>> getAppointments(
+    String userUuid, {
     String? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -290,7 +295,7 @@ class RealDataService extends ChangeNotifier {
         LEFT JOIN users hw ON a.health_worker_id = hw.id
         WHERE client.uuid = @userUuid OR hw.uuid = @userUuid
       ''';
-      
+
       Map<String, dynamic> parameters = {'userUuid': userUuid};
 
       if (status != null) {
@@ -310,8 +315,11 @@ class RealDataService extends ChangeNotifier {
 
       query += ' ORDER BY a.appointment_date ASC';
 
-      final result = await _postgresService.query(query, parameters: parameters);
-      
+      final result = await _postgresService.query(
+        query,
+        parameters: parameters,
+      );
+
       return result.map((json) => Appointment.fromJson(json)).toList();
     } catch (e) {
       debugPrint('❌ Get appointments failed: $e');

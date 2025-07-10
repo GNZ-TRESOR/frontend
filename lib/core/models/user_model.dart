@@ -140,20 +140,28 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      phone: json['phone'],
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
+      phone: json['phone'] ?? '',
       role: UserRole.fromValue(json['role'] ?? 'client'),
       facilityId: json['facilityId'],
       district: json['district'],
       sector: json['sector'],
       cell: json['cell'],
       village: json['village'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: DateTime.parse(
+        json['createdAt'] ??
+            json['created_at'] ??
+            DateTime.now().toIso8601String(),
+      ),
       lastLoginAt:
-          json['lastLoginAt'] != null
-              ? DateTime.parse(json['lastLoginAt'])
+          json['lastLoginAt'] != null || json['last_login_at'] != null
+              ? DateTime.parse(
+                json['lastLoginAt'] ??
+                    json['last_login_at'] ??
+                    DateTime.now().toIso8601String(),
+              )
               : null,
       isActive: json['isActive'] ?? true,
       profileImageUrl: json['profileImageUrl'],
