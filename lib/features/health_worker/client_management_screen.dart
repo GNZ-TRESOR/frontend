@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/user_model.dart';
 import '../../core/models/health_record_model.dart';
+import '../../core/services/real_data_service.dart';
 import '../../widgets/voice_button.dart';
 import '../messaging/enhanced_chat_screen.dart';
 import 'client_details_screen.dart';
@@ -50,63 +51,18 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
     });
 
     try {
-      // TODO: Load from API
-      await Future.delayed(const Duration(seconds: 1));
+      // Load clients using RealDataService
+      final realDataService = RealDataService();
 
-      _clients = [
-        User(
-          id: '1',
-          name: 'Mukamana Marie',
-          email: 'marie@example.com',
-          phone: '+250788123456',
-          role: UserRole.client,
-          district: 'Kigali',
-          sector: 'Kimisagara',
-          cell: 'Nyabugogo',
-          village: 'Nyabugogo I',
-          createdAt: DateTime.now().subtract(const Duration(days: 30)),
-          lastLoginAt: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-        User(
-          id: '2',
-          name: 'Uwimana Jeanne',
-          email: 'jeanne@example.com',
-          phone: '+250788234567',
-          role: UserRole.client,
-          district: 'Kigali',
-          sector: 'Kimisagara',
-          cell: 'Nyabugogo',
-          village: 'Nyabugogo II',
-          createdAt: DateTime.now().subtract(const Duration(days: 60)),
-          lastLoginAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-        User(
-          id: '3',
-          name: 'Gasana Alice',
-          email: 'alice@example.com',
-          phone: '+250788345678',
-          role: UserRole.client,
-          district: 'Kigali',
-          sector: 'Kimisagara',
-          cell: 'Nyabugogo',
-          village: 'Nyabugogo III',
-          createdAt: DateTime.now().subtract(const Duration(days: 90)),
-          lastLoginAt: DateTime.now().subtract(const Duration(hours: 5)),
-        ),
-        User(
-          id: '4',
-          name: 'Nyirahabimana Grace',
-          email: 'grace@example.com',
-          phone: '+250788456789',
-          role: UserRole.client,
-          district: 'Kigali',
-          sector: 'Kimisagara',
-          cell: 'Nyabugogo',
-          village: 'Nyabugogo IV',
-          createdAt: DateTime.now().subtract(const Duration(days: 15)),
-          lastLoginAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        ),
-      ];
+      // Initialize service if not already done
+      if (!realDataService.isConnected) {
+        await realDataService.initialize();
+      }
+
+      // Get all users with CLIENT role
+      final allUsers = await realDataService.getAllUsers();
+      _clients =
+          allUsers.where((user) => user.role == UserRole.client).toList();
 
       _filteredClients = _clients;
     } catch (e) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/dashboard_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/voice_button.dart';
 import '../../widgets/ai_assistant_fab.dart';
@@ -31,15 +32,73 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  final DashboardService _dashboardService = DashboardService();
+
+  // Dashboard data
+  Map<String, dynamic>? _dashboardStats;
+  List<Map<String, dynamic>> _recentActivities = [];
+  Map<String, dynamic>? _educationProgress;
+  Map<String, dynamic>? _contraceptionInfo;
+  int _unreadMessagesCount = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load all dashboard data concurrently
+      final results = await Future.wait([
+        _dashboardService.getDashboardStats(),
+        _dashboardService.getRecentActivities(),
+        _dashboardService.getEducationProgress(),
+        _dashboardService.getContraceptionInfo(),
+        _dashboardService.getUnreadMessagesCount(),
+      ]);
+
+      setState(() {
+        _dashboardStats = results[0] as Map<String, dynamic>?;
+        _recentActivities = results[1] as List<Map<String, dynamic>>;
+        _educationProgress = results[2] as Map<String, dynamic>?;
+        _contraceptionInfo = results[3] as Map<String, dynamic>?;
+        _unreadMessagesCount = results[4] as int;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading dashboard data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   List<DashboardItem> _getDashboardItems(AppLocalizations l10n) {
+    // Get education progress from API data
+    final educationCount =
+        _educationProgress != null
+            ? '${_educationProgress!['completedLessons'] ?? 0}'
+            : '0';
+
+    // Get contraception effectiveness from API data
+    final contraceptionEffectiveness =
+        _contraceptionInfo != null
+            ? '${_contraceptionInfo!['effectiveness'] ?? 0}%'
+            : '0%';
+
     return [
       DashboardItem(
         title: l10n.education,
         subtitle: l10n.lessons,
         icon: Icons.school_rounded,
         color: AppTheme.primaryColor,
-        count: '12',
+        count: educationCount,
         description: l10n.lessons,
       ),
       DashboardItem(
@@ -47,7 +106,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: l10n.birthControl,
         icon: Icons.medical_services_rounded,
         color: AppTheme.secondaryColor,
-        count: '99%',
+        count: contraceptionEffectiveness,
         description: l10n.effectiveness,
       ),
       DashboardItem(
@@ -55,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: l10n.communication,
         icon: Icons.favorite_rounded,
         color: AppTheme.accentColor,
-        count: '2',
+        count: '$_unreadMessagesCount',
         description: l10n.messages,
       ),
       DashboardItem(
@@ -139,30 +198,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Custom App Bar
-          _buildAppBar(isTablet, l10n),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // Custom App Bar
+            _buildAppBar(isTablet, l10n),
 
-          // Welcome Section
-          SliverToBoxAdapter(child: _buildWelcomeSection(isTablet, l10n)),
+            // Welcome Section
+            SliverToBoxAdapter(child: _buildWelcomeSection(isTablet, l10n)),
 
-          // Backend Status
-          const SliverToBoxAdapter(child: BackendStatusWidget()),
+            // Backend Status
+            const SliverToBoxAdapter(child: BackendStatusWidget()),
 
-          // Quick Stats
-          SliverToBoxAdapter(child: _buildQuickStats(isTablet, l10n)),
+            // Loading indicator or content
+            if (_isLoading)
+              SliverToBoxAdapter(
+                child: Container(
+                  height: 200,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              )
+            else ...[
+              // Quick Stats
+              SliverToBoxAdapter(child: _buildQuickStats(isTablet, l10n)),
 
-          // Main Features
-          SliverToBoxAdapter(child: _buildMainFeatures(isTablet, l10n)),
+              // Main Features
+              SliverToBoxAdapter(child: _buildMainFeatures(isTablet, l10n)),
 
-          // Recent Activity
-          SliverToBoxAdapter(child: _buildRecentActivity(isTablet, l10n)),
+              // Recent Activity
+              SliverToBoxAdapter(child: _buildRecentActivity(isTablet, l10n)),
+            ],
 
-          // Bottom Padding
-          SliverToBoxAdapter(child: SizedBox(height: AppTheme.spacing64)),
-        ],
+            // Bottom Padding
+            SliverToBoxAdapter(child: SizedBox(height: AppTheme.spacing64)),
+          ],
+        ),
       ),
       floatingActionButton: _buildVoiceButton(),
       bottomNavigationBar: _buildBottomNavigation(),
@@ -569,40 +641,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
               boxShadow: AppTheme.softShadow,
             ),
-            child: Column(
-              children: [
-                _buildActivityItem(
-                  l10n.lessons,
-                  l10n.education,
-                  Icons.school_rounded,
-                  AppTheme.primaryColor,
-                  l10n.today,
-                  isTablet,
-                ),
-                Divider(height: AppTheme.spacing24),
-                _buildActivityItem(
-                  l10n.healthTracking,
-                  l10n.menstrualCycle,
-                  Icons.favorite_rounded,
-                  AppTheme.secondaryColor,
-                  l10n.yesterday,
-                  isTablet,
-                ),
-                Divider(height: AppTheme.spacing24),
-                _buildActivityItem(
-                  l10n.messages,
-                  l10n.healthWorker,
-                  Icons.chat_rounded,
-                  AppTheme.accentColor,
-                  l10n.today,
-                  isTablet,
-                ),
-              ],
-            ),
+            child:
+                _recentActivities.isEmpty
+                    ? Column(
+                      children: [
+                        Icon(
+                          Icons.history_rounded,
+                          size: 48,
+                          color: AppTheme.textSecondary,
+                        ),
+                        SizedBox(height: AppTheme.spacing16),
+                        Text(
+                          'Nta bikorwa bigezweho',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    )
+                    : Column(
+                      children:
+                          _recentActivities.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final activity = entry.value;
+                            final isLast =
+                                index == _recentActivities.length - 1;
+
+                            return Column(
+                              children: [
+                                _buildActivityItem(
+                                  activity['title'] ?? '',
+                                  activity['subtitle'] ?? '',
+                                  _getActivityIcon(
+                                    activity['icon'] ?? 'default',
+                                  ),
+                                  _getActivityColor(
+                                    activity['color'] ?? 'primary',
+                                  ),
+                                  _formatActivityTime(activity['time'] ?? ''),
+                                  isTablet,
+                                ),
+                                if (!isLast)
+                                  Divider(height: AppTheme.spacing24),
+                              ],
+                            );
+                          }).toList(),
+                    ),
           ),
         ],
       ),
     ).animate(delay: 800.ms).fadeIn().slideY(begin: 0.3, duration: 600.ms);
+  }
+
+  IconData _getActivityIcon(String iconType) {
+    switch (iconType) {
+      case 'calendar':
+        return Icons.calendar_today_rounded;
+      case 'health':
+        return Icons.favorite_rounded;
+      case 'message':
+        return Icons.chat_rounded;
+      case 'education':
+        return Icons.school_rounded;
+      default:
+        return Icons.circle_rounded;
+    }
+  }
+
+  Color _getActivityColor(String colorType) {
+    switch (colorType) {
+      case 'primary':
+        return AppTheme.primaryColor;
+      case 'secondary':
+        return AppTheme.secondaryColor;
+      case 'accent':
+        return AppTheme.accentColor;
+      default:
+        return AppTheme.primaryColor;
+    }
+  }
+
+  String _formatActivityTime(String timeString) {
+    try {
+      final time = DateTime.parse(timeString);
+      final now = DateTime.now();
+      final difference = now.difference(time);
+
+      if (difference.inDays > 0) {
+        return '${difference.inDays} ${difference.inDays == 1 ? 'umunsi' : 'iminsi'} ishize';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} ${difference.inHours == 1 ? 'isaha' : 'amasaha'} ashize';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'umunota' : 'iminota'} ishize';
+      } else {
+        return 'Ubu';
+      }
+    } catch (e) {
+      return 'Ubu';
+    }
   }
 
   Widget _buildActivityItem(

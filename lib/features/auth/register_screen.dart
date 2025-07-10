@@ -133,11 +133,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Registration error details: $e'); // Debug logging
+      debugPrint('Registration error details: $e');
       if (mounted) {
+        String errorMessage = 'Habaye ikosa mu gukora konti';
+
+        // Handle specific error cases
+        String errorString = e.toString().toLowerCase();
+        if (errorString.contains('email') &&
+            (errorString.contains('exist') ||
+                errorString.contains('already') ||
+                errorString.contains('duplicate'))) {
+          errorMessage =
+              'Imeyili yawe isanzwe ikoreshwa. Koresha indi imeyili cyangwa winjire mu konti yawe.';
+        } else if (errorString.contains('phone') &&
+            (errorString.contains('exist') ||
+                errorString.contains('already') ||
+                errorString.contains('duplicate'))) {
+          errorMessage =
+              'Nimero ya telefone isanzwe ikoreshwa. Koresha indi nimero.';
+        } else if (errorString.contains('validation') ||
+            errorString.contains('bad request')) {
+          errorMessage =
+              'Amakuru winjije ntabwo ari yo. Reba neza amakuru wose.';
+        } else if (errorString.contains('network') ||
+            errorString.contains('connection')) {
+          errorMessage = 'Nta mukoro wa interineti. Gerageza nyuma.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Habaye ikosa mu gukora konti: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: AppTheme.errorColor,
             duration: const Duration(seconds: 5),
           ),

@@ -55,8 +55,12 @@ class EducationLesson {
       audioUrl: json['audioUrl'],
       imageUrls: List<String>.from(json['imageUrls'] ?? []),
       isActive: json['isActive'] ?? true,
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -114,13 +118,18 @@ class EducationProgress {
       lessonId: json['lessonId']?.toString() ?? '',
       progressPercentage: (json['progressPercentage'] ?? 0.0).toDouble(),
       isCompleted: json['isCompleted'] ?? false,
-      completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'])
-          : null,
+      completedAt:
+          json['completedAt'] != null
+              ? DateTime.parse(json['completedAt'])
+              : null,
       timeSpent: json['timeSpent'] ?? 0,
       quizResults: json['quizResults'] as Map<String, dynamic>?,
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -178,9 +187,12 @@ class EducationService {
         if (apiResponse.isSuccess && apiResponse.data != null) {
           final lessonsData = apiResponse.data as Map<String, dynamic>;
           final lessonsList = lessonsData['lessons'] as List<dynamic>;
-          
+
           return lessonsList
-              .map((json) => EducationLesson.fromJson(json as Map<String, dynamic>))
+              .map(
+                (json) =>
+                    EducationLesson.fromJson(json as Map<String, dynamic>),
+              )
               .toList();
         }
       }
@@ -204,7 +216,9 @@ class EducationService {
         );
 
         if (apiResponse.isSuccess && apiResponse.data != null) {
-          return EducationLesson.fromJson(apiResponse.data as Map<String, dynamic>);
+          return EducationLesson.fromJson(
+            apiResponse.data as Map<String, dynamic>,
+          );
         }
       }
 
@@ -232,9 +246,12 @@ class EducationService {
         if (apiResponse.isSuccess && apiResponse.data != null) {
           final lessonsData = apiResponse.data as Map<String, dynamic>;
           final lessonsList = lessonsData['lessons'] as List<dynamic>;
-          
+
           return lessonsList
-              .map((json) => EducationLesson.fromJson(json as Map<String, dynamic>))
+              .map(
+                (json) =>
+                    EducationLesson.fromJson(json as Map<String, dynamic>),
+              )
               .toList();
         }
       }
@@ -254,7 +271,10 @@ class EducationService {
   /// Get user's education progress
   Future<List<EducationProgress>> getUserProgress(String userId) async {
     try {
-      final response = await _httpClient.get('/education/progress/$userId');
+      final response = await _httpClient.get(
+        '/education/progress',
+        queryParameters: {'userId': userId},
+      );
 
       if (response.statusCode == 200) {
         final apiResponse = ApiResponse.fromJson(
@@ -265,9 +285,12 @@ class EducationService {
         if (apiResponse.isSuccess && apiResponse.data != null) {
           final progressData = apiResponse.data as Map<String, dynamic>;
           final progressList = progressData['progress'] as List<dynamic>;
-          
+
           return progressList
-              .map((json) => EducationProgress.fromJson(json as Map<String, dynamic>))
+              .map(
+                (json) =>
+                    EducationProgress.fromJson(json as Map<String, dynamic>),
+              )
               .toList();
         }
       }
@@ -310,7 +333,9 @@ class EducationService {
         );
 
         if (apiResponse.isSuccess && apiResponse.data != null) {
-          return EducationProgress.fromJson(apiResponse.data as Map<String, dynamic>);
+          return EducationProgress.fromJson(
+            apiResponse.data as Map<String, dynamic>,
+          );
         }
       }
 
@@ -346,7 +371,7 @@ class EducationService {
         if (apiResponse.isSuccess && apiResponse.data != null) {
           final categoriesData = apiResponse.data as Map<String, dynamic>;
           final categoriesList = categoriesData['categories'] as List<dynamic>;
-          
+
           return categoriesList.map((category) => category.toString()).toList();
         }
       }
@@ -361,7 +386,9 @@ class EducationService {
   /// Get recommended lessons for user
   Future<List<EducationLesson>> getRecommendedLessons(String userId) async {
     try {
-      final response = await _httpClient.get('/education/recommendations/$userId');
+      final response = await _httpClient.get(
+        '/education/recommendations/$userId',
+      );
 
       if (response.statusCode == 200) {
         final apiResponse = ApiResponse.fromJson(
@@ -372,9 +399,12 @@ class EducationService {
         if (apiResponse.isSuccess && apiResponse.data != null) {
           final lessonsData = apiResponse.data as Map<String, dynamic>;
           final lessonsList = lessonsData['recommendations'] as List<dynamic>;
-          
+
           return lessonsList
-              .map((json) => EducationLesson.fromJson(json as Map<String, dynamic>))
+              .map(
+                (json) =>
+                    EducationLesson.fromJson(json as Map<String, dynamic>),
+              )
               .toList();
         }
       }

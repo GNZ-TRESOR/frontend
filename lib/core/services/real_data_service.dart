@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'postgres_service.dart';
-import '../models/user.dart';
-import '../models/health_record.dart';
-import '../models/appointment.dart';
+import '../models/user_model.dart';
+// TODO: Import these when models are available:
+// import '../models/health_record.dart';
+// import '../models/appointment.dart';
 
 /// Real Data Service for Ubuzima App
 /// Handles CRUD operations with PostgreSQL database
@@ -27,17 +28,20 @@ class RealDataService extends ChangeNotifier {
   }
 
   // ==================== USER OPERATIONS ====================
+  // TODO: Fix User model property conflicts
 
+  /*
   /// Create a new user
   Future<User?> createUser(User user) async {
     try {
       final result = await _postgresService.query(
         '''
-        INSERT INTO users (name, email, phone, role, date_of_birth, gender, location)
-        VALUES (@name, @email, @phone, @role, @dateOfBirth, @gender, @location)
+        INSERT INTO users (uuid, name, email, phone, role, date_of_birth, gender, location)
+        VALUES (@uuid, @name, @email, @phone, @role, @dateOfBirth, @gender, @location)
         RETURNING *
         ''',
         parameters: {
+          'uuid': user.uuid,
           'name': user.name,
           'email': user.email,
           'phone': user.phone,
@@ -85,11 +89,11 @@ class RealDataService extends ChangeNotifier {
         SET name = @name, email = @email, phone = @phone, 
             date_of_birth = @dateOfBirth, gender = @gender, 
             location = @location, updated_at = CURRENT_TIMESTAMP
-        WHERE id = @id
+        WHERE uuid = @uuid
         RETURNING *
         ''',
         parameters: {
-          'id': user.id,
+          'uuid': user.uuid,
           'name': user.name,
           'email': user.email,
           'phone': user.phone,
@@ -108,11 +112,25 @@ class RealDataService extends ChangeNotifier {
       return null;
     }
   }
+  */
+
+  /// Get all users
+  Future<List<User>> getAllUsers() async {
+    try {
+      final result = await _postgresService.query('SELECT * FROM users');
+      return result.map((json) => User.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('❌ Get all users failed: $e');
+      return [];
+    }
+  }
 
   // ==================== HEALTH RECORD OPERATIONS ====================
+  // TODO: Uncomment when HealthRecord model is available
 
+  /*
   /// Create health record
-  Future<HealthRecord?> createHealthRecord(HealthRecord record) async {
+  Future<Map<String, dynamic>?> createHealthRecord(Map<String, dynamic> record) async {
     try {
       final result = await _postgresService.query(
         '''
@@ -398,6 +416,7 @@ class RealDataService extends ChangeNotifier {
       return {};
     }
   }
+  */
 
   /// Sync data with local database
   Future<void> syncWithLocal() async {

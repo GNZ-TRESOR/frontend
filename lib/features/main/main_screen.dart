@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/models/user_model.dart';
+import '../../core/services/auth_service.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../health_worker/health_worker_dashboard.dart';
 import '../admin/admin_dashboard.dart';
@@ -11,8 +12,14 @@ class MainScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get current user (in a real app, this would come from authentication service)
-    final currentUser = user ?? SampleUsers.getCurrentUser();
+    // Get current authenticated user
+    final authService = AuthService();
+    final currentUser = user ?? authService.currentUser;
+
+    // If no user is authenticated, redirect to login
+    if (currentUser == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     // Route to appropriate dashboard based on user role
     switch (currentUser.role) {
@@ -244,12 +251,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   void _navigateToMainScreen() {
     if (_selectedRole == null) return;
 
-    // Get sample user for the selected role
-    final users = SampleUsers.getUsersByRole(_selectedRole!);
-    final user = users.isNotEmpty ? users.first : SampleUsers.users.first;
-
+    // Note: This demo screen is deprecated - use real authentication instead
+    // Navigate to main screen without user (will use AuthService.currentUser)
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => MainScreen(user: user)),
+      MaterialPageRoute(builder: (context) => const MainScreen()),
     );
   }
 }

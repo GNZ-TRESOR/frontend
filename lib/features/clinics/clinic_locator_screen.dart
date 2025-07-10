@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/models/health_facility.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/health_facility_service.dart';
+import '../../core/services/data_service.dart';
 import '../../widgets/voice_button.dart';
 import '../appointments/appointment_booking_screen.dart';
 
@@ -105,9 +106,10 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
         limit: 50,
       );
 
-      // If no facilities found, load sample data for demonstration
+      // If no facilities found, try loading all facilities
       if (_facilities.isEmpty) {
-        _facilities = _getSampleFacilities();
+        final dataService = DataService();
+        _facilities = await dataService.getHealthFacilities();
       }
 
       // Update markers on map
@@ -118,8 +120,14 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       });
     } catch (e) {
       debugPrint('Error loading facilities: $e');
-      // Load sample data as fallback
-      _facilities = _getSampleFacilities();
+      // Try loading all facilities as fallback
+      try {
+        final dataService = DataService();
+        _facilities = await dataService.getHealthFacilities();
+      } catch (fallbackError) {
+        debugPrint('Fallback also failed: $fallbackError');
+        _facilities = []; // Empty list if all fails
+      }
       _updateMapMarkers();
       setState(() {
         _isLoading = false;
@@ -127,6 +135,7 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
     }
   }
 
+  // Sample facilities method removed - now using real API data from DataService
   List<HealthFacility> _getSampleFacilities() {
     return [
       HealthFacility(

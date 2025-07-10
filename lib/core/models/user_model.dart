@@ -145,23 +145,18 @@ class User {
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
       role: UserRole.fromValue(json['role'] ?? 'client'),
-      facilityId: json['facilityId'],
+      facilityId: json['facilityId']?.toString(),
       district: json['district'],
       sector: json['sector'],
       cell: json['cell'],
       village: json['village'],
-      createdAt: DateTime.parse(
-        json['createdAt'] ??
-            json['created_at'] ??
-            DateTime.now().toIso8601String(),
-      ),
+      createdAt:
+          json['createdAt'] != null
+              ? DateTime.parse(json['createdAt'])
+              : DateTime.now(),
       lastLoginAt:
-          json['lastLoginAt'] != null || json['last_login_at'] != null
-              ? DateTime.parse(
-                json['lastLoginAt'] ??
-                    json['last_login_at'] ??
-                    DateTime.now().toIso8601String(),
-              )
+          json['lastLoginAt'] != null
+              ? DateTime.parse(json['lastLoginAt'])
               : null,
       isActive: json['isActive'] ?? true,
       profileImageUrl: json['profileImageUrl'],
