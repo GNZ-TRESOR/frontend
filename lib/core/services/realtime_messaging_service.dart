@@ -7,13 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Real-time messaging service using WebSockets
 /// Handles live chat, notifications, and real-time updates
 class RealtimeMessagingService extends ChangeNotifier {
-  static final RealtimeMessagingService _instance = RealtimeMessagingService._internal();
+  static final RealtimeMessagingService _instance =
+      RealtimeMessagingService._internal();
   factory RealtimeMessagingService() => _instance;
   RealtimeMessagingService._internal();
 
   // WebSocket configuration
-  static const String wsUrl = 'ws://localhost:8080/ws';
-  
+  static const String wsUrl = 'ws://10.0.2.2:8080/ws';
+
   // Connection state
   WebSocketChannel? _channel;
   bool _isConnected = false;
@@ -25,7 +26,7 @@ class RealtimeMessagingService extends ChangeNotifier {
   static const int maxReconnectAttempts = 5;
 
   // Message handling
-  final StreamController<RealtimeMessage> _messageController = 
+  final StreamController<RealtimeMessage> _messageController =
       StreamController<RealtimeMessage>.broadcast();
   final List<RealtimeMessage> _messageQueue = [];
   String? _userId;
@@ -40,11 +41,13 @@ class RealtimeMessagingService extends ChangeNotifier {
   Future<void> initialize({required String userId}) async {
     try {
       _userId = userId;
-      debugPrint('🔌 Initializing real-time messaging service for user: $userId');
-      
+      debugPrint(
+        '🔌 Initializing real-time messaging service for user: $userId',
+      );
+
       await _loadQueuedMessages();
       await connect();
-      
+
       debugPrint('✅ Real-time messaging service initialized');
     } catch (e) {
       debugPrint('❌ Real-time messaging service initialization failed: $e');
@@ -89,17 +92,16 @@ class RealtimeMessagingService extends ChangeNotifier {
 
       debugPrint('✅ WebSocket connected successfully');
       notifyListeners();
-
     } catch (e) {
       _isConnected = false;
       _isConnecting = false;
       _lastError = e.toString();
-      
+
       debugPrint('❌ WebSocket connection failed: $e');
-      
+
       // Schedule reconnection
       _scheduleReconnect();
-      
+
       notifyListeners();
     }
   }
@@ -119,10 +121,9 @@ class RealtimeMessagingService extends ChangeNotifier {
 
       _isConnected = false;
       _isConnecting = false;
-      
+
       debugPrint('✅ WebSocket disconnected');
       notifyListeners();
-
     } catch (e) {
       debugPrint('❌ WebSocket disconnection error: $e');
     }
@@ -156,7 +157,6 @@ class RealtimeMessagingService extends ChangeNotifier {
         await _saveQueuedMessages();
         debugPrint('📥 Message queued: ${message.id}');
       }
-
     } catch (e) {
       debugPrint('❌ Failed to send message: $e');
       _lastError = e.toString();
@@ -182,7 +182,6 @@ class RealtimeMessagingService extends ChangeNotifier {
 
       _channel!.sink.add(json.encode(typingMessage));
       debugPrint('⌨️ Typing indicator sent: $isTyping');
-
     } catch (e) {
       debugPrint('❌ Failed to send typing indicator: $e');
     }
@@ -206,7 +205,6 @@ class RealtimeMessagingService extends ChangeNotifier {
 
       _channel!.sink.add(json.encode(readReceipt));
       debugPrint('✅ Read receipt sent for message: $messageId');
-
     } catch (e) {
       debugPrint('❌ Failed to send read receipt: $e');
     }
@@ -226,7 +224,6 @@ class RealtimeMessagingService extends ChangeNotifier {
 
       _channel!.sink.add(json.encode(joinMessage));
       debugPrint('🏠 Joined room: $roomId');
-
     } catch (e) {
       debugPrint('❌ Failed to join room: $e');
     }
@@ -246,7 +243,6 @@ class RealtimeMessagingService extends ChangeNotifier {
 
       _channel!.sink.add(json.encode(leaveMessage));
       debugPrint('🚪 Left room: $roomId');
-
     } catch (e) {
       debugPrint('❌ Failed to leave room: $e');
     }
@@ -305,7 +301,6 @@ class RealtimeMessagingService extends ChangeNotifier {
         default:
           debugPrint('❓ Unknown message type: $messageType');
       }
-
     } catch (e) {
       debugPrint('❌ Failed to handle incoming message: $e');
     }
@@ -314,46 +309,52 @@ class RealtimeMessagingService extends ChangeNotifier {
   /// Handle typing indicator
   void _handleTypingIndicator(Map<String, dynamic> data) {
     final typingMessage = TypingIndicator.fromJson(data);
-    _messageController.add(RealtimeMessage(
-      id: 'typing_${DateTime.now().millisecondsSinceEpoch}',
-      senderId: typingMessage.senderId,
-      recipientId: typingMessage.recipientId,
-      content: '',
-      type: MessageType.typing,
-      timestamp: typingMessage.timestamp,
-      metadata: {'isTyping': typingMessage.isTyping},
-    ));
+    _messageController.add(
+      RealtimeMessage(
+        id: 'typing_${DateTime.now().millisecondsSinceEpoch}',
+        senderId: typingMessage.senderId,
+        recipientId: typingMessage.recipientId,
+        content: '',
+        type: MessageType.typing,
+        timestamp: typingMessage.timestamp,
+        metadata: {'isTyping': typingMessage.isTyping},
+      ),
+    );
   }
 
   /// Handle read receipt
   void _handleReadReceipt(Map<String, dynamic> data) {
     final readReceipt = ReadReceipt.fromJson(data);
-    _messageController.add(RealtimeMessage(
-      id: 'read_${DateTime.now().millisecondsSinceEpoch}',
-      senderId: readReceipt.readerId,
-      recipientId: readReceipt.senderId,
-      content: '',
-      type: MessageType.readReceipt,
-      timestamp: readReceipt.timestamp,
-      metadata: {'messageId': readReceipt.messageId},
-    ));
+    _messageController.add(
+      RealtimeMessage(
+        id: 'read_${DateTime.now().millisecondsSinceEpoch}',
+        senderId: readReceipt.readerId,
+        recipientId: readReceipt.senderId,
+        content: '',
+        type: MessageType.readReceipt,
+        timestamp: readReceipt.timestamp,
+        metadata: {'messageId': readReceipt.messageId},
+      ),
+    );
   }
 
   /// Handle user status
   void _handleUserStatus(Map<String, dynamic> data) {
     final userStatus = UserStatus.fromJson(data);
-    _messageController.add(RealtimeMessage(
-      id: 'status_${DateTime.now().millisecondsSinceEpoch}',
-      senderId: userStatus.userId,
-      recipientId: '',
-      content: '',
-      type: MessageType.userStatus,
-      timestamp: userStatus.timestamp,
-      metadata: {
-        'status': userStatus.status,
-        'lastSeen': userStatus.lastSeen?.toIso8601String(),
-      },
-    ));
+    _messageController.add(
+      RealtimeMessage(
+        id: 'status_${DateTime.now().millisecondsSinceEpoch}',
+        senderId: userStatus.userId,
+        recipientId: '',
+        content: '',
+        type: MessageType.userStatus,
+        timestamp: userStatus.timestamp,
+        metadata: {
+          'status': userStatus.status,
+          'lastSeen': userStatus.lastSeen?.toIso8601String(),
+        },
+      ),
+    );
   }
 
   /// Start heartbeat
@@ -400,9 +401,11 @@ class RealtimeMessagingService extends ChangeNotifier {
 
     _reconnectTimer?.cancel();
     final delay = Duration(seconds: (2 << _reconnectAttempts).clamp(1, 30));
-    
-    debugPrint('🔄 Scheduling reconnection in ${delay.inSeconds}s (attempt ${_reconnectAttempts + 1})');
-    
+
+    debugPrint(
+      '🔄 Scheduling reconnection in ${delay.inSeconds}s (attempt ${_reconnectAttempts + 1})',
+    );
+
     _reconnectTimer = Timer(delay, () {
       _reconnectAttempts++;
       connect();
@@ -605,9 +608,8 @@ class UserStatus {
     return UserStatus(
       userId: json['userId'],
       status: json['status'],
-      lastSeen: json['lastSeen'] != null 
-          ? DateTime.parse(json['lastSeen'])
-          : null,
+      lastSeen:
+          json['lastSeen'] != null ? DateTime.parse(json['lastSeen']) : null,
       timestamp: DateTime.parse(json['timestamp']),
     );
   }

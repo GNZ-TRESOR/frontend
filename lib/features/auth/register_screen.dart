@@ -21,6 +21,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _emergencyContactController = TextEditingController();
+  final _facilityIdController = TextEditingController();
   final AuthService _authService = AuthService();
 
   bool _isPasswordVisible = false;
@@ -28,6 +30,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _agreeToTerms = false;
   String _selectedRole = AppConstants.roleClient;
+  String _selectedGender = 'PREFER_NOT_TO_SAY';
+  String _selectedLanguage = 'rw';
+  String _selectedDistrict = '';
+  String _selectedSector = '';
+  String _selectedCell = '';
+  String _selectedVillage = '';
+  DateTime? _selectedDateOfBirth;
 
   @override
   void dispose() {
@@ -36,6 +45,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _emergencyContactController.dispose();
+    _facilityIdController.dispose();
     super.dispose();
   }
 
@@ -65,6 +76,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         lastName: lastName,
         phoneNumber: _phoneController.text.trim(),
         role: _selectedRole,
+        gender: _selectedGender,
+        dateOfBirth: _selectedDateOfBirth,
+        district: _selectedDistrict,
+        sector: _selectedSector,
+        cell: _selectedCell,
+        village: _selectedVillage,
+        emergencyContact: _emergencyContactController.text.trim(),
+        preferredLanguage: _selectedLanguage,
+        facilityId:
+            _selectedRole == AppConstants.roleHealthWorker
+                ? _facilityIdController.text.trim()
+                : null,
       );
 
       if (mounted) {
@@ -277,7 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Text('Umukiliya'),
                     ),
                     DropdownMenuItem(
-                      value: AppConstants.roleWorker,
+                      value: AppConstants.roleHealthWorker,
                       child: Text('Umukozi w\'ubuzima'),
                     ),
                   ],
@@ -292,6 +315,215 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 .slideX(begin: -0.3, duration: 600.ms),
 
             SizedBox(height: AppTheme.spacing20),
+
+            // Gender Selection
+            DropdownButtonFormField<String>(
+                  value: _selectedGender,
+                  decoration: const InputDecoration(
+                    labelText: 'Igitsina',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'MALE', child: Text('Gabo')),
+                    DropdownMenuItem(value: 'FEMALE', child: Text('Gore')),
+                    DropdownMenuItem(value: 'OTHER', child: Text('Ikindi')),
+                    DropdownMenuItem(
+                      value: 'PREFER_NOT_TO_SAY',
+                      child: Text('Sinshaka kubivuga'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedGender = value!;
+                    });
+                  },
+                )
+                .animate()
+                .fadeIn(delay: 950.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
+            SizedBox(height: AppTheme.spacing20),
+
+            // Date of Birth
+            TextFormField(
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Itariki y\'amavuko',
+                hintText: 'Hitamo itariki y\'amavuko yawe',
+                prefixIcon: const Icon(Icons.calendar_today_outlined),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.calendar_month),
+                  onPressed: () => _selectDateOfBirth(),
+                ),
+              ),
+              controller: TextEditingController(
+                text:
+                    _selectedDateOfBirth != null
+                        ? '${_selectedDateOfBirth!.day}/${_selectedDateOfBirth!.month}/${_selectedDateOfBirth!.year}'
+                        : '',
+              ),
+              validator: (value) {
+                if (_selectedDateOfBirth == null) {
+                  return 'Hitamo itariki y\'amavuko yawe';
+                }
+                return null;
+              },
+            ).animate().fadeIn(delay: 975.ms).slideX(begin: -0.3, duration: 600.ms),
+
+            SizedBox(height: AppTheme.spacing20),
+
+            // District Selection
+            DropdownButtonFormField<String>(
+                  value: _selectedDistrict.isEmpty ? null : _selectedDistrict,
+                  decoration: const InputDecoration(
+                    labelText: 'Akarere',
+                    prefixIcon: Icon(Icons.location_city_outlined),
+                  ),
+                  items: _getDistrictItems(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedDistrict = value ?? '';
+                      _selectedSector = '';
+                      _selectedCell = '';
+                      _selectedVillage = '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Hitamo akarere kawe';
+                    }
+                    return null;
+                  },
+                )
+                .animate()
+                .fadeIn(delay: 1000.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
+            SizedBox(height: AppTheme.spacing20),
+
+            // Sector Selection
+            DropdownButtonFormField<String>(
+                  value: _selectedSector.isEmpty ? null : _selectedSector,
+                  decoration: const InputDecoration(
+                    labelText: 'Umurenge',
+                    prefixIcon: Icon(Icons.location_on_outlined),
+                  ),
+                  items: _getSectorItems(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedSector = value ?? '';
+                      _selectedCell = '';
+                      _selectedVillage = '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Hitamo umurenge wawe';
+                    }
+                    return null;
+                  },
+                )
+                .animate()
+                .fadeIn(delay: 1025.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
+            SizedBox(height: AppTheme.spacing20),
+
+            // Cell Field
+            TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Akagari',
+                    hintText: 'Shyiramo akagari kawe',
+                    prefixIcon: Icon(Icons.home_outlined),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCell = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Shyiramo akagari kawe';
+                    }
+                    return null;
+                  },
+                )
+                .animate()
+                .fadeIn(delay: 1050.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
+            SizedBox(height: AppTheme.spacing20),
+
+            // Village Field
+            TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Umudugudu',
+                    hintText: 'Shyiramo umudugudu wawe',
+                    prefixIcon: Icon(Icons.house_outlined),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedVillage = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Shyiramo umudugudu wawe';
+                    }
+                    return null;
+                  },
+                )
+                .animate()
+                .fadeIn(delay: 1075.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
+            SizedBox(height: AppTheme.spacing20),
+
+            // Emergency Contact
+            TextFormField(
+                  controller: _emergencyContactController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Nimero ya telefone y\'umuturanyi',
+                    hintText: 'Shyiramo nimero ya telefone y\'umuturanyi',
+                    prefixIcon: Icon(Icons.emergency_outlined),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Shyiramo nimero ya telefone y\'umuturanyi';
+                    }
+                    return AppValidation.validatePhone(value);
+                  },
+                )
+                .animate()
+                .fadeIn(delay: 1100.ms)
+                .slideX(begin: -0.3, duration: 600.ms),
+
+            SizedBox(height: AppTheme.spacing20),
+
+            // Facility ID (only for health workers)
+            if (_selectedRole == AppConstants.roleHealthWorker) ...[
+              TextFormField(
+                    controller: _facilityIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nimero y\'ikigo cy\'ubuzima',
+                      hintText: 'Shyiramo nimero y\'ikigo cy\'ubuzima',
+                      prefixIcon: Icon(Icons.local_hospital_outlined),
+                    ),
+                    validator: (value) {
+                      if (_selectedRole == AppConstants.roleHealthWorker &&
+                          (value == null || value.trim().isEmpty)) {
+                        return 'Shyiramo nimero y\'ikigo cy\'ubuzima';
+                      }
+                      return null;
+                    },
+                  )
+                  .animate()
+                  .fadeIn(delay: 1125.ms)
+                  .slideX(begin: -0.3, duration: 600.ms),
+
+              SizedBox(height: AppTheme.spacing20),
+            ],
 
             // Password Field
             TextFormField(
@@ -455,5 +687,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ],
     ).animate().fadeIn(delay: 1500.ms);
+  }
+
+  Future<void> _selectDateOfBirth() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate:
+          _selectedDateOfBirth ??
+          DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now().subtract(
+        const Duration(days: 365 * 13),
+      ), // Minimum 13 years old
+      helpText: 'Hitamo itariki y\'amavuko yawe',
+      cancelText: 'Kuraguza',
+      confirmText: 'Emeza',
+    );
+
+    if (picked != null && picked != _selectedDateOfBirth) {
+      setState(() {
+        _selectedDateOfBirth = picked;
+      });
+    }
+  }
+
+  List<DropdownMenuItem<String>> _getDistrictItems() {
+    // Rwanda districts
+    final districts = [
+      'Kigali',
+      'Nyarugenge',
+      'Gasabo',
+      'Kicukiro',
+      'Nyanza',
+      'Gisagara',
+      'Nyaruguru',
+      'Huye',
+      'Nyamagabe',
+      'Ruhango',
+      'Muhanga',
+      'Kamonyi',
+      'Karongi',
+      'Rutsiro',
+      'Rubavu',
+      'Nyabihu',
+      'Ngororero',
+      'Rusizi',
+      'Nyamasheke',
+      'Rulindo',
+      'Gakenke',
+      'Musanze',
+      'Burera',
+      'Gicumbi',
+      'Rwamagana',
+      'Nyagatare',
+      'Gatsibo',
+      'Kayonza',
+      'Kirehe',
+      'Ngoma',
+      'Bugesera',
+    ];
+
+    return districts.map((district) {
+      return DropdownMenuItem<String>(value: district, child: Text(district));
+    }).toList();
+  }
+
+  List<DropdownMenuItem<String>> _getSectorItems() {
+    if (_selectedDistrict.isEmpty) {
+      return [];
+    }
+
+    // Sample sectors for each district (you can expand this)
+    final Map<String, List<String>> districtSectors = {
+      'Kigali': ['Nyarugenge', 'Nyamirambo', 'Kimisagara', 'Gitega'],
+      'Gasabo': ['Remera', 'Kacyiru', 'Kimironko', 'Gisozi'],
+      'Kicukiro': ['Niboye', 'Kicukiro', 'Gahanga', 'Kagarama'],
+      'Nyarugenge': ['Nyarugenge', 'Nyamirambo', 'Kimisagara', 'Gitega'],
+      // Add more districts and their sectors as needed
+    };
+
+    final sectors =
+        districtSectors[_selectedDistrict] ??
+        ['Umurenge 1', 'Umurenge 2', 'Umurenge 3'];
+
+    return sectors.map((sector) {
+      return DropdownMenuItem<String>(value: sector, child: Text(sector));
+    }).toList();
   }
 }

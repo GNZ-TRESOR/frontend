@@ -6,7 +6,9 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // API Configuration
-  static const String baseUrl = 'http://localhost:8080/api';
+  // Use 10.0.2.2 for Android emulator to reach host machine
+  static const String baseUrl = 'http://10.0.2.2:8080/api/v1';
+
   static const String apiVersion = 'v1';
   static const Duration requestTimeout = Duration(seconds: 30);
 
@@ -22,10 +24,12 @@ class AppConstants {
   static const String onboardingCompletedKey = 'onboarding_completed';
   static const String offlineModeKey = 'offline_mode';
 
-  // User Roles
-  static const String roleClient = 'client';
-  static const String roleWorker = 'worker';
-  static const String roleAdmin = 'admin';
+  // User Roles (matching backend UserRole enum)
+  static const String roleClient = 'CLIENT';
+  static const String roleHealthWorker = 'HEALTH_WORKER';
+  static const String roleWorker =
+      'HEALTH_WORKER'; // Alias for roleHealthWorker
+  static const String roleAdmin = 'ADMIN';
   static const String roleAnonymous = 'anonymous';
 
   // Languages

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../../core/theme/app_theme.dart';
-import '../../core/constants/app_constants.dart';
+import '../../core/services/auth_service.dart';
 import '../../widgets/voice_button.dart';
+import 'verification_code_screen.dart';
 import 'login_screen.dart';
 
 class PasswordResetScreen extends StatefulWidget {
@@ -17,6 +16,7 @@ class PasswordResetScreen extends StatefulWidget {
 class _PasswordResetScreenState extends State<PasswordResetScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
   bool _emailSent = false;
 
@@ -34,13 +34,11 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/auth/forgot-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': _emailController.text.trim()}),
+      final success = await _authService.sendPasswordResetCode(
+        _emailController.text.trim(),
       );
 
-      if (response.statusCode == 200) {
+      if (success) {
         setState(() {
           _emailSent = true;
         });
@@ -54,15 +52,23 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
               backgroundColor: AppTheme.successColor,
             ),
           );
+
+          // Navigate to verification code screen
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder:
+                  (context) => VerificationCodeScreen(
+                    email: _emailController.text.trim(),
+                    verificationType: 'password_reset',
+                  ),
+            ),
+          );
         }
       } else {
-        final errorData = json.decode(response.body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                errorData['message'] ?? 'Habaye ikosa mu kohereza email',
-              ),
+            const SnackBar(
+              content: Text('Habaye ikosa mu kohereza email. Gerageza ukundi.'),
               backgroundColor: AppTheme.errorColor,
             ),
           );
@@ -268,9 +274,11 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
             isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
           ),
           decoration: BoxDecoration(
-            color: AppTheme.successColor.withOpacity(0.1),
+            color: AppTheme.successColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: AppTheme.successColor.withOpacity(0.3)),
+            border: Border.all(
+              color: AppTheme.successColor.withValues(alpha: 0.3),
+            ),
           ),
           child: Column(
             children: [

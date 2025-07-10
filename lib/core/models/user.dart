@@ -29,25 +29,32 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as int?,
-      uuid: json['uuid'] as String,
+      uuid: json['uuid'] as String? ?? json['id']?.toString(),
       name: json['name'] as String,
       email: json['email'] as String?,
       phone: json['phone'] as String?,
       role: UserRole.values.firstWhere(
-        (e) => e.toString().split('.').last == json['role'],
-        orElse: () => UserRole.client,
+        (e) =>
+            e.toString().split('.').last.toLowerCase() ==
+            (json['role'] as String? ?? 'client').toLowerCase(),
+        orElse: () => UserRole.CLIENT,
       ),
-      dateOfBirth: json['date_of_birth'] != null 
-          ? DateTime.parse(json['date_of_birth'] as String)
-          : null,
+      dateOfBirth:
+          json['dateOfBirth'] != null || json['date_of_birth'] != null
+              ? DateTime.parse(
+                (json['dateOfBirth'] ?? json['date_of_birth']) as String,
+              )
+              : null,
       gender: json['gender'] as String?,
       location: json['location'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String)
-          : null,
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at'] as String)
-          : null,
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.parse(json['created_at'] as String)
+              : null,
+      updatedAt:
+          json['updated_at'] != null
+              ? DateTime.parse(json['updated_at'] as String)
+              : null,
     );
   }
 
@@ -103,75 +110,77 @@ class User {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-  
+
     return other is User &&
-      other.id == id &&
-      other.uuid == uuid &&
-      other.name == name &&
-      other.email == email &&
-      other.phone == phone &&
-      other.role == role &&
-      other.dateOfBirth == dateOfBirth &&
-      other.gender == gender &&
-      other.location == location &&
-      other.createdAt == createdAt &&
-      other.updatedAt == updatedAt;
+        other.id == id &&
+        other.uuid == uuid &&
+        other.name == name &&
+        other.email == email &&
+        other.phone == phone &&
+        other.role == role &&
+        other.dateOfBirth == dateOfBirth &&
+        other.gender == gender &&
+        other.location == location &&
+        other.createdAt == createdAt &&
+        other.updatedAt == updatedAt;
   }
 
   @override
   int get hashCode {
     return id.hashCode ^
-      uuid.hashCode ^
-      name.hashCode ^
-      email.hashCode ^
-      phone.hashCode ^
-      role.hashCode ^
-      dateOfBirth.hashCode ^
-      gender.hashCode ^
-      location.hashCode ^
-      createdAt.hashCode ^
-      updatedAt.hashCode;
+        uuid.hashCode ^
+        name.hashCode ^
+        email.hashCode ^
+        phone.hashCode ^
+        role.hashCode ^
+        dateOfBirth.hashCode ^
+        gender.hashCode ^
+        location.hashCode ^
+        createdAt.hashCode ^
+        updatedAt.hashCode;
   }
 }
 
-/// User roles in the Ubuzima app
-enum UserRole {
-  client,
-  healthWorker,
-  admin,
-}
+/// User roles in the Ubuzima app (matching backend UserRole enum)
+enum UserRole { CLIENT, HEALTH_WORKER, ADMIN, ANONYMOUS }
 
 extension UserRoleExtension on UserRole {
   String get displayName {
     switch (this) {
-      case UserRole.client:
+      case UserRole.CLIENT:
         return 'Client';
-      case UserRole.healthWorker:
+      case UserRole.HEALTH_WORKER:
         return 'Health Worker';
-      case UserRole.admin:
+      case UserRole.ADMIN:
         return 'Administrator';
+      case UserRole.ANONYMOUS:
+        return 'Anonymous';
     }
   }
 
   String get displayNameKinyarwanda {
     switch (this) {
-      case UserRole.client:
+      case UserRole.CLIENT:
         return 'Umukiriya';
-      case UserRole.healthWorker:
+      case UserRole.HEALTH_WORKER:
         return 'Umukozi w\'ubuzima';
-      case UserRole.admin:
+      case UserRole.ADMIN:
         return 'Umuyobozi';
+      case UserRole.ANONYMOUS:
+        return 'Umunyangamugayo';
     }
   }
 
   String get displayNameFrench {
     switch (this) {
-      case UserRole.client:
+      case UserRole.CLIENT:
         return 'Client';
-      case UserRole.healthWorker:
+      case UserRole.HEALTH_WORKER:
         return 'Agent de santé';
-      case UserRole.admin:
+      case UserRole.ADMIN:
         return 'Administrateur';
+      case UserRole.ANONYMOUS:
+        return 'Anonyme';
     }
   }
 }

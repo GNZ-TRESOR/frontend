@@ -33,8 +33,9 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        final token = data['token'] as String;
+        final responseData = response.data;
+        final data = responseData['data'] as Map<String, dynamic>;
+        final token = data['accessToken'] as String;
         final userMap = data['user'] as Map<String, dynamic>;
 
         final user = User.fromJson(userMap);
@@ -60,31 +61,69 @@ class AuthService {
     required String lastName,
     required String phoneNumber,
     String role = AppConstants.roleClient,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? district,
+    String? sector,
+    String? cell,
+    String? village,
+    String? emergencyContact,
+    String? preferredLanguage,
+    String? facilityId,
   }) async {
     try {
+      final Map<String, dynamic> requestData = {
+        'name': '$firstName $lastName',
+        'email': email,
+        'password': password,
+        'phone': phoneNumber,
+      };
+
+      // Add optional fields if provided
+      if (gender != null) requestData['gender'] = gender;
+      if (dateOfBirth != null)
+        requestData['dateOfBirth'] =
+            dateOfBirth.toIso8601String().split('T')[0];
+      if (district != null) requestData['district'] = district;
+      if (sector != null) requestData['sector'] = sector;
+      if (cell != null) requestData['cell'] = cell;
+      if (village != null) requestData['village'] = village;
+      if (emergencyContact != null)
+        requestData['emergencyContact'] = emergencyContact;
+      if (preferredLanguage != null)
+        requestData['preferredLanguage'] = preferredLanguage;
+      if (facilityId != null) requestData['facilityId'] = facilityId;
+
       final response = await _httpClient.post(
         '/auth/register',
-        data: {
-          'email': email,
-          'password': password,
-          'firstName': firstName,
-          'lastName': lastName,
-          'phoneNumber': phoneNumber,
-          'role': role,
-        },
+        data: requestData,
       );
 
-      if (response.statusCode == 201) {
-        final data = response.data;
-        final token = data['token'] as String;
-        final userMap = data['user'] as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData['success'] == true) {
+          final data = responseData['data'];
+          final token = data['accessToken'] as String;
 
-        final user = User.fromJson(userMap);
+          // Create a basic user object since the backend doesn't return full user data in register
+          final user = User(
+            id: email, // Use email as temporary ID
+            name: '$firstName $lastName',
+            email: email,
+            phone: phoneNumber,
+            role: UserRole.fromValue(role),
+            createdAt: DateTime.now(),
+          );
 
-        await _saveAuth(user, token);
-        await _httpClient.setAuthToken(token);
+          await _saveAuth(user, token);
+          await _httpClient.setAuthToken(token);
 
-        return AuthResult.success(user);
+          return AuthResult.success(user);
+        } else {
+          return AuthResult.failure(
+            responseData['userMessage'] ?? 'Registration failed',
+          );
+        }
       } else {
         return AuthResult.failure('Registration failed');
       }
@@ -272,6 +311,97 @@ class AuthService {
     await prefs.remove(AppConstants.userIdKey);
     await prefs.remove(AppConstants.userRoleKey);
     await prefs.remove('user_data');
+  }
+
+  // Password reset methods
+  Future<bool> sendPasswordResetCode(String email) async {
+    try {
+      final response = await _httpClient.post(
+        '/auth/forgot-password',
+        data: {'email': email},
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Send password reset code error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> verifyPasswordResetCode(String email, String code) async {
+    try {
+      // This would typically verify the code with the backend
+      // For now, return true as a placeholder
+      return true;
+    } catch (e) {
+      debugPrint('Verify password reset code error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> resetPasswordWithCode(
+    String email,
+    String code,
+    String newPassword,
+  ) async {
+    try {
+      final response = await _httpClient.post(
+        '/auth/reset-password',
+        data: {
+          'token': code, // Assuming the code is used as token
+          'newPassword': newPassword,
+        },
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Reset password with code error: $e');
+      return false;
+    }
+  }
+
+  // Email verification methods
+  Future<bool> sendEmailVerificationCode(String email) async {
+    try {
+      // This would typically send email verification code
+      // For now, return true as a placeholder
+      return true;
+    } catch (e) {
+      debugPrint('Send email verification code error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> verifyEmailCode(String email, String code) async {
+    try {
+      // This would typically verify email code with the backend
+      // For now, return true as a placeholder
+      return true;
+    } catch (e) {
+      debugPrint('Verify email code error: $e');
+      return false;
+    }
+  }
+
+  // Phone verification methods
+  Future<bool> sendPhoneVerificationCode(String phone) async {
+    try {
+      // This would typically send phone verification code
+      // For now, return true as a placeholder
+      return true;
+    } catch (e) {
+      debugPrint('Send phone verification code error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> verifyPhoneCode(String phone, String code) async {
+    try {
+      // This would typically verify phone code with the backend
+      // For now, return true as a placeholder
+      return true;
+    } catch (e) {
+      debugPrint('Verify phone code error: $e');
+      return false;
+    }
   }
 
   String _getErrorMessage(dynamic error) {

@@ -1069,12 +1069,14 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         return Icons.science_rounded;
       case HealthRecordType.prescription:
         return Icons.medication_rounded;
-      case HealthRecordType.vitals:
+      case HealthRecordType.vitalSigns:
         return Icons.monitor_heart_rounded;
       case HealthRecordType.familyPlanning:
         return Icons.family_restroom_rounded;
       case HealthRecordType.pregnancy:
         return Icons.pregnant_woman_rounded;
+      case HealthRecordType.prenatalCare:
+        return Icons.baby_changing_station_rounded;
       case HealthRecordType.menstrualCycle:
         return Icons.calendar_month_rounded;
       case HealthRecordType.contraception:
@@ -1092,12 +1094,14 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         return AppTheme.accentColor;
       case HealthRecordType.prescription:
         return AppTheme.warningColor;
-      case HealthRecordType.vitals:
+      case HealthRecordType.vitalSigns:
         return AppTheme.errorColor;
       case HealthRecordType.familyPlanning:
         return AppTheme.secondaryColor;
       case HealthRecordType.pregnancy:
         return AppTheme.accentColor;
+      case HealthRecordType.prenatalCare:
+        return AppTheme.primaryColor.withValues(alpha: 0.8);
       case HealthRecordType.menstrualCycle:
         return AppTheme.primaryColor;
       case HealthRecordType.contraception:
@@ -1115,12 +1119,14 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         return 'Ibizamini';
       case HealthRecordType.prescription:
         return 'Imiti';
-      case HealthRecordType.vitals:
+      case HealthRecordType.vitalSigns:
         return 'Ibipimo';
       case HealthRecordType.familyPlanning:
         return 'Gahunda y\'umuryango';
       case HealthRecordType.pregnancy:
         return 'Inda';
+      case HealthRecordType.prenatalCare:
+        return 'Kwita ku nda';
       case HealthRecordType.menstrualCycle:
         return 'Imihango';
       case HealthRecordType.contraception:

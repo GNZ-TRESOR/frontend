@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/appointment_model.dart';
-import '../../core/models/health_facility_model.dart';
+import '../../core/models/health_facility.dart';
 import '../../core/models/user_model.dart';
 import '../../widgets/voice_button.dart';
 import 'appointment_confirmation_screen.dart';
@@ -73,40 +73,45 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         HealthFacility(
           id: '1',
           name: 'Kimisagara Health Center',
-          facilityType: FacilityType.healthCenter,
+          type: FacilityType.HEALTH_CENTER,
           address: 'Kimisagara, Kigali',
           district: 'Nyarugenge',
           sector: 'Kimisagara',
           latitude: -1.9441,
           longitude: 30.0619,
-          phoneNumber: '+250788111222',
-          servicesOffered: [
-            'Family Planning',
-            'Maternal Health',
-            'General Medicine',
-          ],
-          operatingHours: '08:00-17:00 (Mon-Fri), 08:00-12:00 (Sat)',
-          hasFamilyPlanning: true,
-          hasMaternityWard: true,
+          phone: '+250788111222',
+          services: ['Family Planning', 'Maternal Health', 'General Medicine'],
+          operatingHours: {
+            'Monday': '08:00-17:00',
+            'Tuesday': '08:00-17:00',
+            'Wednesday': '08:00-17:00',
+            'Thursday': '08:00-17:00',
+            'Friday': '08:00-17:00',
+            'Saturday': '08:00-12:00',
+          },
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ),
         HealthFacility(
           id: '2',
           name: 'Kigali University Teaching Hospital',
-          facilityType: FacilityType.hospital,
+          type: FacilityType.HOSPITAL,
           address: 'Nyarugenge, Kigali',
           district: 'Nyarugenge',
           sector: 'Nyarugenge',
           latitude: -1.9536,
           longitude: 30.0606,
-          phoneNumber: '+250788333444',
-          servicesOffered: ['Emergency', 'Surgery', 'Maternity', 'Pediatrics'],
-          operatingHours: '24/7',
-          is24Hours: true,
-          hasEmergencyServices: true,
-          hasMaternityWard: true,
-          hasFamilyPlanning: true,
+          phone: '+250788333444',
+          services: ['Emergency', 'Surgery', 'Maternity', 'Pediatrics'],
+          operatingHours: {
+            'Monday': '24/7',
+            'Tuesday': '24/7',
+            'Wednesday': '24/7',
+            'Thursday': '24/7',
+            'Friday': '24/7',
+            'Saturday': '24/7',
+            'Sunday': '24/7',
+          },
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ),
@@ -471,7 +476,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                     ),
                   ),
                   subtitle: Text(
-                    '${facility.facilityTypeDisplayName} • ${facility.address}',
+                    '${facility.type.displayName} • ${facility.address}',
                     style: AppTheme.bodySmall.copyWith(
                       color: AppTheme.textSecondary,
                     ),

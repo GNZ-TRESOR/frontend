@@ -235,7 +235,7 @@ class _AppointmentConfirmationScreenState
         ),
         _buildDetailRow(
           'Ubwoko:',
-          widget.appointment.facility?.facilityTypeDisplayName ?? 'N/A',
+          widget.appointment.facility?.type.displayName ?? 'N/A',
           Icons.category_rounded,
           isTablet,
         ),
@@ -247,7 +247,7 @@ class _AppointmentConfirmationScreenState
         ),
         _buildDetailRow(
           'Telefoni:',
-          widget.appointment.facility?.phoneNumber ?? 'N/A',
+          widget.appointment.facility?.phone ?? 'N/A',
           Icons.phone_rounded,
           isTablet,
         ),

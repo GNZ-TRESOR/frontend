@@ -275,9 +275,10 @@ enum HealthRecordType {
   vaccination,
   labResult,
   prescription,
-  vitals,
+  vitalSigns,
   familyPlanning,
   pregnancy,
+  prenatalCare,
   menstrualCycle,
   contraception,
 }

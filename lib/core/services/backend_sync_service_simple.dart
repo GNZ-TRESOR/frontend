@@ -16,7 +16,7 @@ class BackendSyncService {
       StreamController<bool>.broadcast();
 
   // Backend API configuration
-  static const String baseUrl = 'http://localhost:8080/api';
+  static const String baseUrl = 'http://10.0.2.2:8080/api/v1';
 
   // Getters
   bool get isSyncing => _isSyncing;
@@ -39,7 +39,7 @@ class BackendSyncService {
     try {
       // Test connection to Spring Boot backend
       final response = await http.get(
-        Uri.parse('http://localhost:8080/api/health'),
+        Uri.parse('http://10.0.2.2:8080/api/v1/health'),
         headers: {'Content-Type': 'application/json'},
       );
 

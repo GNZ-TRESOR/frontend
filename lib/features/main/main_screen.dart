@@ -7,10 +7,7 @@ import '../admin/admin_dashboard.dart';
 class MainScreen extends StatelessWidget {
   final User? user;
 
-  const MainScreen({
-    super.key,
-    this.user,
-  });
+  const MainScreen({super.key, this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +49,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           child: Column(
             children: [
               const Spacer(),
-              
+
               // Title
               Text(
                 'Hitamo uruhare rwawe',
@@ -63,9 +60,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               Text(
                 'Hitamo uruhare rwawe kugira ngo ugere ku bikorwa byawe',
                 style: TextStyle(
@@ -74,21 +71,22 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 48),
-              
+
               // Role Cards
               _buildRoleCard(
                 title: 'Umunyangire',
-                subtitle: 'Koresha app kugira ngo wige no gukurikirana ubuzima bwawe',
+                subtitle:
+                    'Koresha app kugira ngo wige no gukurikirana ubuzima bwawe',
                 icon: Icons.person_rounded,
                 color: const Color(0xFF3B82F6),
                 role: UserRole.client,
                 isTablet: isTablet,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               _buildRoleCard(
                 title: 'Umukozi w\'ubuzima',
                 subtitle: 'Gucunga abakiriya no gutanga inama z\'ubuzima',
@@ -97,9 +95,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 role: UserRole.healthWorker,
                 isTablet: isTablet,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               _buildRoleCard(
                 title: 'Umuyobozi',
                 subtitle: 'Gucunga sisiteme no gukurikirana imikorere',
@@ -108,9 +106,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 role: UserRole.admin,
                 isTablet: isTablet,
               ),
-              
+
               const Spacer(),
-              
+
               // Continue Button
               if (_selectedRole != null)
                 SizedBox(
@@ -154,7 +152,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     required bool isTablet,
   }) {
     final isSelected = _selectedRole == role;
-    
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -192,15 +190,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                     color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
                   ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: isTablet ? 28 : 24,
-                  ),
+                  child: Icon(icon, color: color, size: isTablet ? 28 : 24),
                 ),
-                
+
                 const SizedBox(width: 16),
-                
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +218,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                     ],
                   ),
                 ),
-                
+
                 if (isSelected)
                   Container(
                     width: 24,
@@ -255,9 +249,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     final user = users.isNotEmpty ? users.first : SampleUsers.users.first;
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => MainScreen(user: user),
-      ),
+      MaterialPageRoute(builder: (context) => MainScreen(user: user)),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:intl/intl.dart';
 import 'user_model.dart';
-import 'health_facility_model.dart';
+import 'health_facility.dart';
 
 part 'appointment_model.g.dart';
 

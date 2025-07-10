@@ -1,4 +1,25 @@
-enum UserRole { client, healthWorker, admin }
+enum UserRole {
+  client('client'),
+  healthWorker('healthWorker'),
+  admin('admin');
+
+  const UserRole(this.value);
+  final String value;
+
+  static UserRole fromValue(String value) {
+    switch (value.toLowerCase()) {
+      case 'client':
+        return UserRole.client;
+      case 'healthworker':
+      case 'health_worker':
+        return UserRole.healthWorker;
+      case 'admin':
+        return UserRole.admin;
+      default:
+        return UserRole.client;
+    }
+  }
+}
 
 class User {
   final String id;
@@ -123,7 +144,7 @@ class User {
       name: json['name'],
       email: json['email'],
       phone: json['phone'],
-      role: UserRole.values.firstWhere((e) => e.name == json['role']),
+      role: UserRole.fromValue(json['role'] ?? 'client'),
       facilityId: json['facilityId'],
       district: json['district'],
       sector: json['sector'],

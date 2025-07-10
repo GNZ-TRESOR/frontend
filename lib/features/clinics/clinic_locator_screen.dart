@@ -4,7 +4,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/models/health_facility_model.dart';
+import '../../core/models/health_facility.dart';
+import '../../core/services/location_service.dart';
+import '../../core/services/health_facility_service.dart';
 import '../../widgets/voice_button.dart';
 import '../appointments/appointment_booking_screen.dart';
 
@@ -22,17 +24,21 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   HealthFacility? _selectedFacility;
   bool _isLoading = true;
   bool _isMapReady = false;
-  String _selectedFilter = 'all';
+  FacilityType? _selectedFilter;
+  String _searchQuery = '';
 
   final Set<Marker> _markers = {};
   final PageController _pageController = PageController();
+  final TextEditingController _searchController = TextEditingController();
+  final LocationService _locationService = LocationService();
+  final HealthFacilityService _facilityService = HealthFacilityService();
 
-  final List<String> _facilityTypes = [
-    'all',
-    'Hospital',
-    'Health Center',
-    'Clinic',
-    'Pharmacy',
+  final List<FacilityType> _facilityTypes = [
+    FacilityType.HOSPITAL,
+    FacilityType.HEALTH_CENTER,
+    FacilityType.CLINIC,
+    FacilityType.DISPENSARY,
+    FacilityType.PHARMACY,
   ];
 
   @override
@@ -43,36 +49,20 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
-    _pageController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _initializeLocation() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      // Check location permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showErrorSnackBar('Tugomba uruhushya rwo gukoresha aho uri');
-          return;
-        }
-      }
+      // Get current position using LocationService
+      _currentPosition = await _locationService.getCurrentPosition();
 
-      if (permission == LocationPermission.deniedForever) {
-        _showErrorSnackBar(
-          'Uruhushya rwo gukoresha aho uri rwahakanywe burundu',
-        );
-        return;
-      }
-
-      // Get current position
-      try {
-        _currentPosition = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        );
-      } catch (e) {
+      if (_currentPosition == null) {
         // Fallback to Kigali coordinates if location access fails
         _currentPosition = Position(
           latitude: -1.9441,
@@ -87,10 +77,11 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
           speedAccuracy: 0,
         );
         _showErrorSnackBar(
-          'Dukoresha aho Kigali iri - emera gukoresha aho uri',
+          'Dukoresha aho Kigali iri kuko tutashobora kubona aho uri',
         );
       }
 
+      // Load nearby facilities
       await _loadNearbyFacilities();
     } catch (e) {
       _showErrorSnackBar('Habaye ikosa mu gushaka aho uri');
@@ -102,112 +93,191 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   }
 
   Future<void> _loadNearbyFacilities() async {
-    try {
-      // TODO: Load from API based on current location
-      _facilities = [
-        HealthFacility(
-          id: '1',
-          name: 'Kimisagara Health Center',
-          facilityType: FacilityType.healthCenter,
-          address: 'Kimisagara, Nyarugenge, Kigali',
-          district: 'Nyarugenge',
-          sector: 'Kimisagara',
-          latitude: -1.9441,
-          longitude: 30.0619,
-          phoneNumber: '+250788111222',
-          email: 'kimisagara@health.gov.rw',
-          servicesOffered: [
-            'Family Planning',
-            'Maternal Health',
-            'General Medicine',
-            'Vaccination',
-          ],
-          operatingHours: '08:00-17:00 (Mon-Fri), 08:00-12:00 (Sat)',
-          hasFamilyPlanning: true,
-          hasMaternityWard: true,
-          rating: 4.5,
-          totalReviews: 128,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        HealthFacility(
-          id: '2',
-          name: 'Kigali University Teaching Hospital',
-          facilityType: FacilityType.hospital,
-          address: 'Nyarugenge, Kigali',
-          district: 'Nyarugenge',
-          sector: 'Nyarugenge',
-          latitude: -1.9536,
-          longitude: 30.0606,
-          phoneNumber: '+250788333444',
-          email: 'info@kuth.rw',
-          servicesOffered: [
-            'Emergency',
-            'Surgery',
-            'Maternity',
-            'Pediatrics',
-            'Cardiology',
-          ],
-          operatingHours: '24/7',
-          is24Hours: true,
-          hasEmergencyServices: true,
-          hasMaternityWard: true,
-          hasFamilyPlanning: true,
-          rating: 4.8,
-          totalReviews: 256,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        HealthFacility(
-          id: '3',
-          name: 'Remera Health Center',
-          facilityType: FacilityType.healthCenter,
-          address: 'Remera, Gasabo, Kigali',
-          district: 'Gasabo',
-          sector: 'Remera',
-          latitude: -1.9167,
-          longitude: 30.1167,
-          phoneNumber: '+250788555666',
-          servicesOffered: ['General Medicine', 'Dental Care', 'Eye Care'],
-          operatingHours: '08:00-17:00 (Mon-Fri)',
-          hasFamilyPlanning: false,
-          rating: 4.2,
-          totalReviews: 89,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        HealthFacility(
-          id: '4',
-          name: 'Kacyiru Pharmacy',
-          facilityType: FacilityType.pharmacy,
-          address: 'Kacyiru, Gasabo, Kigali',
-          district: 'Gasabo',
-          sector: 'Kacyiru',
-          latitude: -1.9333,
-          longitude: 30.0833,
-          phoneNumber: '+250788777888',
-          servicesOffered: [
-            'Prescription Drugs',
-            'Over-the-counter Medicine',
-            'Health Consultation',
-          ],
-          operatingHours:
-              '08:00-20:00 (Mon-Fri), 08:00-18:00 (Sat), 10:00-16:00 (Sun)',
-          hasPharmacy: true,
-          rating: 4.0,
-          totalReviews: 45,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      ];
+    if (_currentPosition == null) return;
 
-      _updateMarkers();
+    try {
+      // Load facilities from API
+      _facilities = await _locationService.getNearbyFacilities(
+        latitude: _currentPosition!.latitude,
+        longitude: _currentPosition!.longitude,
+        radiusKm: 25.0,
+        type: _selectedFilter,
+        limit: 50,
+      );
+
+      // If no facilities found, load sample data for demonstration
+      if (_facilities.isEmpty) {
+        _facilities = _getSampleFacilities();
+      }
+
+      // Update markers on map
+      _updateMapMarkers();
+
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e) {
-      _showErrorSnackBar('Habaye ikosa mu gushaka amavuriro');
+      debugPrint('Error loading facilities: $e');
+      // Load sample data as fallback
+      _facilities = _getSampleFacilities();
+      _updateMapMarkers();
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  void _updateMarkers() {
+  List<HealthFacility> _getSampleFacilities() {
+    return [
+      HealthFacility(
+        id: '1',
+        name: 'Kimisagara Health Center',
+        type: FacilityType.HEALTH_CENTER,
+        address: 'Kimisagara, Nyarugenge, Kigali',
+        district: 'Nyarugenge',
+        sector: 'Kimisagara',
+        latitude: -1.9441,
+        longitude: 30.0619,
+        phone: '+250788111222',
+        email: 'kimisagara@health.gov.rw',
+        services: [
+          'Family Planning',
+          'Maternal Health',
+          'General Medicine',
+          'Vaccination',
+        ],
+        operatingHours: {
+          'Monday': '08:00-17:00',
+          'Tuesday': '08:00-17:00',
+          'Wednesday': '08:00-17:00',
+          'Thursday': '08:00-17:00',
+          'Friday': '08:00-17:00',
+          'Saturday': '08:00-12:00',
+        },
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      HealthFacility(
+        id: '2',
+        name: 'King Faisal Hospital',
+        type: FacilityType.HOSPITAL,
+        address: 'Kacyiru, Gasabo, Kigali',
+        district: 'Gasabo',
+        sector: 'Kacyiru',
+        latitude: -1.9355,
+        longitude: 30.0928,
+        phone: '+250788333444',
+        email: 'info@kfh.rw',
+        services: [
+          'Emergency Care',
+          'Surgery',
+          'Maternity',
+          'Pediatrics',
+          'Cardiology',
+        ],
+        operatingHours: {
+          'Monday': '24/7',
+          'Tuesday': '24/7',
+          'Wednesday': '24/7',
+          'Thursday': '24/7',
+          'Friday': '24/7',
+          'Saturday': '24/7',
+          'Sunday': '24/7',
+        },
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      HealthFacility(
+        id: '3',
+        name: 'Remera Health Center',
+        type: FacilityType.HEALTH_CENTER,
+        address: 'Remera, Gasabo, Kigali',
+        district: 'Gasabo',
+        sector: 'Remera',
+        latitude: -1.9578,
+        longitude: 30.1127,
+        phone: '+250788555666',
+        email: 'remera@health.gov.rw',
+        services: [
+          'Family Planning',
+          'HIV Testing',
+          'Vaccination',
+          'General Medicine',
+        ],
+        operatingHours: {
+          'Monday': '07:30-17:00',
+          'Tuesday': '07:30-17:00',
+          'Wednesday': '07:30-17:00',
+          'Thursday': '07:30-17:00',
+          'Friday': '07:30-17:00',
+          'Saturday': '08:00-13:00',
+        },
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      HealthFacility(
+        id: '4',
+        name: 'Nyamirambo Health Center',
+        type: FacilityType.HEALTH_CENTER,
+        address: 'Nyamirambo, Nyarugenge, Kigali',
+        district: 'Nyarugenge',
+        sector: 'Nyamirambo',
+        latitude: -1.9706,
+        longitude: 30.0394,
+        phone: '+250788777888',
+        email: 'nyamirambo@health.gov.rw',
+        services: [
+          'Maternal Health',
+          'Child Health',
+          'Family Planning',
+          'TB Treatment',
+        ],
+        operatingHours: {
+          'Monday': '08:00-17:00',
+          'Tuesday': '08:00-17:00',
+          'Wednesday': '08:00-17:00',
+          'Thursday': '08:00-17:00',
+          'Friday': '08:00-17:00',
+          'Saturday': '08:00-12:00',
+        },
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      HealthFacility(
+        id: '5',
+        name: 'Kigali University Teaching Hospital',
+        type: FacilityType.HOSPITAL,
+        address: 'Nyarugenge, Kigali',
+        district: 'Nyarugenge',
+        sector: 'Nyarugenge',
+        latitude: -1.9536,
+        longitude: 30.0606,
+        phone: '+250788999000',
+        email: 'info@chuk.rw',
+        services: [
+          'Emergency Care',
+          'Surgery',
+          'Oncology',
+          'Neurology',
+          'Cardiology',
+          'Maternity',
+        ],
+        operatingHours: {
+          'Monday': '24/7',
+          'Tuesday': '24/7',
+          'Wednesday': '24/7',
+          'Thursday': '24/7',
+          'Friday': '24/7',
+          'Saturday': '24/7',
+          'Sunday': '24/7',
+        },
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    ];
+  }
+
+  void _updateMapMarkers() {
     _markers.clear();
 
     // Add current location marker
@@ -226,27 +296,28 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
     }
 
     // Add facility markers
-    final filteredFacilities =
-        _selectedFilter == 'all'
-            ? _facilities
-            : _facilities
-                .where((f) => f.facilityTypeDisplayName == _selectedFilter)
-                .toList();
-
-    for (int i = 0; i < filteredFacilities.length; i++) {
-      final facility = filteredFacilities[i];
+    for (int i = 0; i < _facilities.length; i++) {
+      final facility = _facilities[i];
       if (facility.latitude != null && facility.longitude != null) {
         _markers.add(
           Marker(
             markerId: MarkerId(facility.id),
             position: LatLng(facility.latitude!, facility.longitude!),
-            icon: _getMarkerIcon(facility.facilityTypeDisplayName),
+            icon: _getMarkerIcon(facility.type),
             infoWindow: InfoWindow(
               title: facility.name,
-              snippet: facility.facilityTypeDisplayName,
-              onTap: () => _selectFacility(facility, i),
+              snippet: facility.type.displayName,
             ),
-            onTap: () => _selectFacility(facility, i),
+            onTap: () {
+              setState(() {
+                _selectedFacility = facility;
+              });
+              _pageController.animateToPage(
+                i,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            },
           ),
         );
       }
@@ -255,570 +326,463 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
     setState(() {});
   }
 
-  BitmapDescriptor _getMarkerIcon(String type) {
+  BitmapDescriptor _getMarkerIcon(FacilityType type) {
     switch (type) {
-      case 'Hospital':
+      case FacilityType.HOSPITAL:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-      case 'Health Center':
+      case FacilityType.HEALTH_CENTER:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-      case 'Clinic':
+      case FacilityType.CLINIC:
         return BitmapDescriptor.defaultMarkerWithHue(
           BitmapDescriptor.hueOrange,
         );
-      case 'Pharmacy':
+      case FacilityType.PHARMACY:
         return BitmapDescriptor.defaultMarkerWithHue(
           BitmapDescriptor.hueViolet,
         );
-      default:
-        return BitmapDescriptor.defaultMarker;
+      case FacilityType.DISPENSARY:
+        return BitmapDescriptor.defaultMarkerWithHue(
+          BitmapDescriptor.hueYellow,
+        );
     }
   }
 
-  void _selectFacility(HealthFacility facility, int index) {
-    setState(() {
-      _selectedFacility = facility;
-    });
-
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.errorColor,
+        duration: const Duration(seconds: 3),
+      ),
     );
+  }
 
-    if (facility.latitude != null && facility.longitude != null) {
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(facility.latitude!, facility.longitude!),
-          15.0,
+  Widget _buildSearchAndFilter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Search bar
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Shakisha amavuriro cyangwa ahantu...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon:
+                  _searchQuery.isNotEmpty
+                      ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                          _loadNearbyFacilities();
+                        },
+                      )
+                      : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppTheme.borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppTheme.primaryColor),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            onSubmitted: _performSearch,
+          ),
+          const SizedBox(height: 12),
+          // Filter chips
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                FilterChip(
+                  label: const Text('Byose'),
+                  selected: _selectedFilter == null,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedFilter = null;
+                    });
+                    _loadNearbyFacilities();
+                  },
+                ),
+                const SizedBox(width: 8),
+                ..._facilityTypes.map(
+                  (type) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(type.displayName),
+                      selected: _selectedFilter == type,
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedFilter = selected ? type : null;
+                        });
+                        _loadNearbyFacilities();
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMap() {
+    if (_currentPosition == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return GoogleMap(
+      onMapCreated: (GoogleMapController controller) {
+        _mapController = controller;
+        setState(() {
+          _isMapReady = true;
+        });
+      },
+      initialCameraPosition: CameraPosition(
+        target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        zoom: 13.0,
+      ),
+      markers: _markers,
+      myLocationEnabled: true,
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
+      mapToolbarEnabled: false,
+      onTap: (LatLng position) {
+        setState(() {
+          _selectedFacility = null;
+        });
+      },
+    );
+  }
+
+  Widget _buildFacilityList() {
+    if (_facilities.isEmpty) {
+      return Positioned(
+        bottom: 20,
+        left: 20,
+        right: 20,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Text(
+            'Nta mavuriro aboneka hafi yawe. Gerageza guhindura filter cyangwa gushaka ahantu handi.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
         ),
       );
+    }
+
+    return Positioned(
+      bottom: 20,
+      left: 0,
+      right: 0,
+      child: SizedBox(
+        height: 200,
+        child: PageView.builder(
+          controller: _pageController,
+          itemCount: _facilities.length,
+          onPageChanged: (index) {
+            final facility = _facilities[index];
+            setState(() {
+              _selectedFacility = facility;
+            });
+            if (facility.latitude != null && facility.longitude != null) {
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLng(
+                  LatLng(facility.latitude!, facility.longitude!),
+                ),
+              );
+            }
+          },
+          itemBuilder: (context, index) {
+            final facility = _facilities[index];
+            return _buildFacilityCard(facility);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFacilityCard(HealthFacility facility) {
+    final distance = facility.metadata?['distance'];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  facility.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getTypeColor(facility.type),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  facility.type.displayName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  facility.fullAddress,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
+              if (distance != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '${distance.toStringAsFixed(1)} km',
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (facility.services.isNotEmpty) ...[
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children:
+                  facility.services.take(3).map((service) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        service,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  }).toList(),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _openDirections(facility),
+                  icon: const Icon(Icons.directions, size: 16),
+                  label: const Text('Icyerekezo'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _bookAppointment(facility),
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  label: const Text('Gahunda'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.secondaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ).animate().slideY(begin: 0.3).fadeIn();
+  }
+
+  Color _getTypeColor(FacilityType type) {
+    switch (type) {
+      case FacilityType.HOSPITAL:
+        return Colors.red;
+      case FacilityType.HEALTH_CENTER:
+        return Colors.green;
+      case FacilityType.CLINIC:
+        return Colors.orange;
+      case FacilityType.PHARMACY:
+        return Colors.purple;
+      case FacilityType.DISPENSARY:
+        return Colors.amber;
+    }
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.trim().isEmpty) {
+      _loadNearbyFacilities();
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Search by location name
+      final facilities = await _locationService.searchFacilitiesByLocation(
+        query,
+      );
+
+      if (facilities.isNotEmpty) {
+        setState(() {
+          _facilities = facilities;
+          _isLoading = false;
+        });
+        _updateMapMarkers();
+
+        // Move camera to first result
+        final firstFacility = facilities.first;
+        if (firstFacility.latitude != null && firstFacility.longitude != null) {
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLng(
+              LatLng(firstFacility.latitude!, firstFacility.longitude!),
+            ),
+          );
+        }
+      } else {
+        // Search by facility name
+        final allFacilities = await _facilityService.searchHealthFacilities(
+          query,
+        );
+        setState(() {
+          _facilities = allFacilities;
+          _isLoading = false;
+        });
+        _updateMapMarkers();
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorSnackBar('Habaye ikosa mu gushaka');
     }
   }
 
   void _handleVoiceCommand(String command) {
     final lowerCommand = command.toLowerCase();
-    if (lowerCommand.contains('hafi') || lowerCommand.contains('near')) {
-      _goToCurrentLocation();
-    } else if (lowerCommand.contains('bitaro') ||
-        lowerCommand.contains('hospital')) {
-      _filterFacilities('Hospital');
-    } else if (lowerCommand.contains('kigo') ||
-        lowerCommand.contains('center')) {
-      _filterFacilities('Health Center');
+
+    if (lowerCommand.contains('ibitaro') || lowerCommand.contains('hospital')) {
+      setState(() {
+        _selectedFilter = FacilityType.HOSPITAL;
+      });
+      _loadNearbyFacilities();
+    } else if (lowerCommand.contains('amavuriro') ||
+        lowerCommand.contains('clinic')) {
+      setState(() {
+        _selectedFilter = FacilityType.CLINIC;
+      });
+      _loadNearbyFacilities();
     } else if (lowerCommand.contains('farumasi') ||
         lowerCommand.contains('pharmacy')) {
-      _filterFacilities('Pharmacy');
+      setState(() {
+        _selectedFilter = FacilityType.PHARMACY;
+      });
+      _loadNearbyFacilities();
+    } else if (lowerCommand.contains('gushaka') ||
+        lowerCommand.contains('search')) {
+      // Extract search term after "gushaka"
+      final searchTerm =
+          command
+              .replaceAll(RegExp(r'gushaka|search', caseSensitive: false), '')
+              .trim();
+      if (searchTerm.isNotEmpty) {
+        _searchController.text = searchTerm;
+        _performSearch(searchTerm);
+      }
     }
   }
 
-  void _goToCurrentLocation() {
-    if (_currentPosition != null && _mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          15.0,
-        ),
-      );
-    }
-  }
-
-  void _filterFacilities(String type) {
-    setState(() {
-      _selectedFilter = type;
-    });
-    _updateMarkers();
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
-
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Shakisha amavuriro'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.my_location_rounded),
-            onPressed: _goToCurrentLocation,
-            tooltip: 'Subira aho uri',
-          ),
-        ],
-      ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                children: [
-                  // Filter chips
-                  _buildFilterChips(isTablet),
-
-                  // Map
-                  Expanded(flex: 3, child: _buildMap()),
-
-                  // Facility list
-                  Expanded(flex: 2, child: _buildFacilityList(isTablet)),
-                ],
-              ),
-      floatingActionButton: VoiceButton(
-        prompt:
-            'Vuga: "Hafi" kugira ngo ugere aho uri, "Bitaro" kugira ngo ushake ambitaro, cyangwa "Farumasi" kugira ngo ushake amafarumasi',
-        onResult: _handleVoiceCommand,
-        tooltip: 'Koresha ijwi gushaka',
-      ),
-    );
-  }
-
-  Widget _buildFilterChips(bool isTablet) {
-    return Container(
-      height: isTablet ? 60 : 50,
-      padding: EdgeInsets.symmetric(
-        horizontal: isTablet ? AppTheme.spacing16 : AppTheme.spacing12,
-        vertical: AppTheme.spacing8,
-      ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _facilityTypes.length,
-        itemBuilder: (context, index) {
-          final type = _facilityTypes[index];
-          final isSelected = _selectedFilter == type;
-
-          return Container(
-            margin: EdgeInsets.only(right: AppTheme.spacing8),
-            child: FilterChip(
-              label: Text(_getFacilityTypeLabel(type)),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedFilter = type;
-                });
-                _updateMarkers();
-              },
-              selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-              checkmarkColor: AppTheme.primaryColor,
-              labelStyle: AppTheme.bodySmall.copyWith(
-                color:
-                    isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          );
-        },
-      ),
-    ).animate().fadeIn(delay: 200.ms).slideY(begin: -0.3, duration: 600.ms);
-  }
-
-  Widget _buildMap() {
-    if (_currentPosition == null) {
-      return Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceColor,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      );
+  Future<void> _openDirections(HealthFacility facility) async {
+    if (facility.latitude == null || facility.longitude == null) {
+      _showErrorSnackBar('Ntabwo hari amakuru y\'aho iri');
+      return;
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceColor,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        child: Stack(
-          children: [
-            // Fallback map placeholder
-            Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.1),
-                    AppTheme.secondaryColor.withValues(alpha: 0.1),
-                  ],
-                ),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map_rounded, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      'Ikarita izashyirwaho vuba',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Try to load Google Maps
-            FutureBuilder<Widget>(
-              future: _buildGoogleMap(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  return snapshot.data!;
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 400.ms);
-  }
+    final url =
+        'https://www.google.com/maps/dir/?api=1&destination=${facility.latitude},${facility.longitude}';
 
-  Future<Widget> _buildGoogleMap() async {
     try {
-      return GoogleMap(
-        onMapCreated: (GoogleMapController controller) {
-          _mapController = controller;
-          setState(() {
-            _isMapReady = true;
-          });
-        },
-        initialCameraPosition: CameraPosition(
-          target: LatLng(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-          ),
-          zoom: 13.0,
-        ),
-        markers: _markers,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: false,
-        zoomControlsEnabled: false,
-        mapToolbarEnabled: false,
-        mapType: MapType.normal,
-      );
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      } else {
+        _showErrorSnackBar('Ntabwo dushobora gufungura Google Maps');
+      }
     } catch (e) {
-      debugPrint('Google Maps error: $e');
-      return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildFacilityList(bool isTablet) {
-    final filteredFacilities =
-        _selectedFilter == 'all'
-            ? _facilities
-            : _facilities
-                .where((f) => f.facilityTypeDisplayName == _selectedFilter)
-                .toList();
-
-    if (filteredFacilities.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: isTablet ? 64 : 48,
-              color: AppTheme.textTertiary,
-            ),
-            SizedBox(height: AppTheme.spacing16),
-            Text(
-              'Nta mavuriro aboneka',
-              style: AppTheme.bodyLarge.copyWith(color: AppTheme.textTertiary),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return PageView.builder(
-      controller: _pageController,
-      itemCount: filteredFacilities.length,
-      onPageChanged: (index) {
-        final facility = filteredFacilities[index];
-        setState(() {
-          _selectedFacility = facility;
-        });
-
-        if (facility.latitude != null && facility.longitude != null) {
-          _mapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(
-              LatLng(facility.latitude!, facility.longitude!),
-              15.0,
-            ),
-          );
-        }
-      },
-      itemBuilder: (context, index) {
-        final facility = filteredFacilities[index];
-        return _buildFacilityCard(facility, isTablet);
-      },
-    ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, duration: 600.ms);
-  }
-
-  Widget _buildFacilityCard(HealthFacility facility, bool isTablet) {
-    final distance =
-        _currentPosition != null
-            ? facility.distanceFrom(
-              _currentPosition!.latitude,
-              _currentPosition!.longitude,
-            )
-            : 0.0;
-
-    return Container(
-      margin: EdgeInsets.all(
-        isTablet ? AppTheme.spacing16 : AppTheme.spacing12,
-      ),
-      padding: EdgeInsets.all(
-        isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        boxShadow: AppTheme.mediumShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(
-                  isTablet ? AppTheme.spacing12 : AppTheme.spacing8,
-                ),
-                decoration: BoxDecoration(
-                  color: _getFacilityColor(
-                    facility.facilityTypeDisplayName,
-                  ).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-                ),
-                child: Icon(
-                  _getFacilityIcon(facility.facilityTypeDisplayName),
-                  color: _getFacilityColor(facility.facilityTypeDisplayName),
-                  size: isTablet ? 24 : 20,
-                ),
-              ),
-              SizedBox(width: AppTheme.spacing12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      facility.name,
-                      style: AppTheme.headingSmall.copyWith(
-                        fontSize: isTablet ? 18 : 16,
-                      ),
-                    ),
-                    SizedBox(height: AppTheme.spacing4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_rounded,
-                          size: isTablet ? 16 : 14,
-                          color: AppTheme.textSecondary,
-                        ),
-                        SizedBox(width: AppTheme.spacing4),
-                        Text(
-                          distance != null
-                              ? '${distance.toStringAsFixed(1)} km'
-                              : 'N/A',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        SizedBox(width: AppTheme.spacing8),
-                        Icon(
-                          Icons.star_rounded,
-                          size: isTablet ? 16 : 14,
-                          color: AppTheme.warningColor,
-                        ),
-                        SizedBox(width: AppTheme.spacing4),
-                        Text(
-                          '${facility.rating ?? 0.0} (${facility.totalReviews})',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: AppTheme.spacing16),
-
-          // Address
-          Row(
-            children: [
-              Icon(
-                Icons.place_rounded,
-                size: isTablet ? 16 : 14,
-                color: AppTheme.textSecondary,
-              ),
-              SizedBox(width: AppTheme.spacing8),
-              Expanded(
-                child: Text(facility.address, style: AppTheme.bodyMedium),
-              ),
-            ],
-          ),
-
-          SizedBox(height: AppTheme.spacing8),
-
-          // Phone
-          Row(
-            children: [
-              Icon(
-                Icons.phone_rounded,
-                size: isTablet ? 16 : 14,
-                color: AppTheme.textSecondary,
-              ),
-              SizedBox(width: AppTheme.spacing8),
-              Text(facility.phoneNumber ?? 'N/A', style: AppTheme.bodyMedium),
-            ],
-          ),
-
-          SizedBox(height: AppTheme.spacing16),
-
-          // Services
-          if (facility.servicesOffered != null &&
-              facility.servicesOffered!.isNotEmpty) ...[
-            Text(
-              'Serivisi:',
-              style: AppTheme.labelMedium.copyWith(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: AppTheme.spacing8),
-            Wrap(
-              spacing: AppTheme.spacing4,
-              runSpacing: AppTheme.spacing4,
-              children:
-                  facility.servicesOffered!.take(3).map((service) {
-                    return Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing8,
-                        vertical: AppTheme.spacing4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppTheme.spacing4),
-                      ),
-                      child: Text(
-                        service,
-                        style: AppTheme.bodySmall.copyWith(
-                          color: AppTheme.primaryColor,
-                          fontSize: isTablet ? 10 : 8,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-            ),
-            SizedBox(height: AppTheme.spacing16),
-          ],
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _callFacility(facility.phoneNumber ?? ''),
-                  icon: const Icon(Icons.phone_rounded, size: 16),
-                  label: const Text('Hamagara'),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppTheme.primaryColor),
-                    foregroundColor: AppTheme.primaryColor,
-                    padding: EdgeInsets.symmetric(
-                      vertical:
-                          isTablet ? AppTheme.spacing12 : AppTheme.spacing8,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: AppTheme.spacing8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _bookAppointment(facility),
-                  icon: const Icon(Icons.event_rounded, size: 16),
-                  label: const Text('Gahunda'),
-                  style: AppTheme.primaryButtonStyle.copyWith(
-                    padding: WidgetStateProperty.all(
-                      EdgeInsets.symmetric(
-                        vertical:
-                            isTablet ? AppTheme.spacing12 : AppTheme.spacing8,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getFacilityTypeLabel(String type) {
-    switch (type) {
-      case 'all':
-        return 'Byose';
-      case 'Hospital':
-        return 'Ambitaro';
-      case 'Health Center':
-        return 'Ibigo by\'ubuzima';
-      case 'Clinic':
-        return 'Amavuriro';
-      case 'Pharmacy':
-        return 'Amafarumasi';
-      default:
-        return type;
-    }
-  }
-
-  IconData _getFacilityIcon(String type) {
-    switch (type) {
-      case 'Hospital':
-        return Icons.local_hospital_rounded;
-      case 'Health Center':
-        return Icons.medical_services_rounded;
-      case 'Clinic':
-        return Icons.healing_rounded;
-      case 'Pharmacy':
-        return Icons.medication_rounded;
-      default:
-        return Icons.place_rounded;
-    }
-  }
-
-  Color _getFacilityColor(String type) {
-    switch (type) {
-      case 'Hospital':
-        return AppTheme.errorColor;
-      case 'Health Center':
-        return AppTheme.successColor;
-      case 'Clinic':
-        return AppTheme.warningColor;
-      case 'Pharmacy':
-        return AppTheme.accentColor;
-      default:
-        return AppTheme.primaryColor;
-    }
-  }
-
-  Future<void> _callFacility(String phoneNumber) async {
-    final uri = Uri.parse('tel:$phoneNumber');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      _showErrorSnackBar('Ntidushobora gufungura telefoni');
+      _showErrorSnackBar('Habaye ikosa mu gufungura icyerekezo');
     }
   }
 
@@ -827,6 +791,51 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       MaterialPageRoute(
         builder:
             (context) => AppointmentBookingScreen(selectedFacility: facility),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        title: const Text('Gushaka Amavuriro'),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.my_location),
+            onPressed: _initializeLocation,
+            tooltip: 'Subira aho uri',
+          ),
+        ],
+      ),
+      body:
+          _isLoading
+              ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Turashaka amavuriro hafi yawe...'),
+                  ],
+                ),
+              )
+              : Column(
+                children: [
+                  _buildSearchAndFilter(),
+                  Expanded(
+                    child: Stack(children: [_buildMap(), _buildFacilityList()]),
+                  ),
+                ],
+              ),
+      floatingActionButton: VoiceButton(
+        prompt: 'Vuga "gushaka ibitaro" cyangwa "gushaka amavuriro"',
+        onResult: _handleVoiceCommand,
+        tooltip: 'Koresha ijwi gushaka',
       ),
     );
   }
