@@ -1,441 +1,417 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import '../constants/app_constants.dart';
-import '../models/api_response.dart';
-import 'http_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Education lesson model
-class EducationLesson {
-  final String id;
-  final String title;
-  final String titleKinyarwanda;
-  final String content;
-  final String contentKinyarwanda;
-  final String category;
-  final String difficulty;
-  final int estimatedDuration;
-  final List<String> tags;
-  final String? videoUrl;
-  final String? audioUrl;
-  final List<String> imageUrls;
-  final bool isActive;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+import '../models/education_lesson.dart';
+import '../models/education_progress.dart';
+import '../models/education_response.dart';
+import 'api_service.dart';
 
-  const EducationLesson({
-    required this.id,
-    required this.title,
-    required this.titleKinyarwanda,
-    required this.content,
-    required this.contentKinyarwanda,
-    required this.category,
-    required this.difficulty,
-    required this.estimatedDuration,
-    required this.tags,
-    this.videoUrl,
-    this.audioUrl,
-    required this.imageUrls,
-    this.isActive = true,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory EducationLesson.fromJson(Map<String, dynamic> json) {
-    return EducationLesson(
-      id: json['id']?.toString() ?? '',
-      title: json['title'] ?? '',
-      titleKinyarwanda: json['titleKinyarwanda'] ?? '',
-      content: json['content'] ?? '',
-      contentKinyarwanda: json['contentKinyarwanda'] ?? '',
-      category: json['category'] ?? '',
-      difficulty: json['difficulty'] ?? 'BEGINNER',
-      estimatedDuration: json['estimatedDuration'] ?? 0,
-      tags: List<String>.from(json['tags'] ?? []),
-      videoUrl: json['videoUrl'],
-      audioUrl: json['audioUrl'],
-      imageUrls: List<String>.from(json['imageUrls'] ?? []),
-      isActive: json['isActive'] ?? true,
-      createdAt: DateTime.parse(
-        json['createdAt'] ?? DateTime.now().toIso8601String(),
-      ),
-      updatedAt: DateTime.parse(
-        json['updatedAt'] ?? DateTime.now().toIso8601String(),
-      ),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'titleKinyarwanda': titleKinyarwanda,
-      'content': content,
-      'contentKinyarwanda': contentKinyarwanda,
-      'category': category,
-      'difficulty': difficulty,
-      'estimatedDuration': estimatedDuration,
-      'tags': tags,
-      'videoUrl': videoUrl,
-      'audioUrl': audioUrl,
-      'imageUrls': imageUrls,
-      'isActive': isActive,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-}
-
-/// Education progress model
-class EducationProgress {
-  final String id;
-  final String userId;
-  final String lessonId;
-  final double progressPercentage;
-  final bool isCompleted;
-  final DateTime? completedAt;
-  final int timeSpent;
-  final Map<String, dynamic>? quizResults;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  const EducationProgress({
-    required this.id,
-    required this.userId,
-    required this.lessonId,
-    required this.progressPercentage,
-    this.isCompleted = false,
-    this.completedAt,
-    this.timeSpent = 0,
-    this.quizResults,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory EducationProgress.fromJson(Map<String, dynamic> json) {
-    return EducationProgress(
-      id: json['id']?.toString() ?? '',
-      userId: json['userId']?.toString() ?? '',
-      lessonId: json['lessonId']?.toString() ?? '',
-      progressPercentage: (json['progressPercentage'] ?? 0.0).toDouble(),
-      isCompleted: json['isCompleted'] ?? false,
-      completedAt:
-          json['completedAt'] != null
-              ? DateTime.parse(json['completedAt'])
-              : null,
-      timeSpent: json['timeSpent'] ?? 0,
-      quizResults: json['quizResults'] as Map<String, dynamic>?,
-      createdAt: DateTime.parse(
-        json['createdAt'] ?? DateTime.now().toIso8601String(),
-      ),
-      updatedAt: DateTime.parse(
-        json['updatedAt'] ?? DateTime.now().toIso8601String(),
-      ),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'lessonId': lessonId,
-      'progressPercentage': progressPercentage,
-      'isCompleted': isCompleted,
-      'completedAt': completedAt?.toIso8601String(),
-      'timeSpent': timeSpent,
-      'quizResults': quizResults,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-}
-
-/// Service for managing health education content
+/// Education Service for managing education lessons and progress
 class EducationService {
-  final HttpClient _httpClient = HttpClient();
+  final ApiService _apiService;
 
-  /// Get all education lessons
-  Future<List<EducationLesson>> getEducationLessons({
-    int page = 0,
-    int limit = 20,
+  EducationService(this._apiService);
+
+  // ==================== CLIENT EDUCATION ENDPOINTS ====================
+
+  /// Get published education lessons
+  Future<List<EducationLesson>> getLessons({
     String? category,
-    String? difficulty,
-    List<String>? tags,
-    bool? isActive,
+    String? level,
+    String? language,
   }) async {
     try {
-      final queryParams = <String, String>{
-        'page': page.toString(),
-        'limit': limit.toString(),
-      };
-
+      final queryParams = <String, dynamic>{};
       if (category != null) queryParams['category'] = category;
-      if (difficulty != null) queryParams['difficulty'] = difficulty;
-      if (tags != null) queryParams['tags'] = tags.join(',');
-      if (isActive != null) queryParams['isActive'] = isActive.toString();
+      if (level != null) queryParams['level'] = level;
+      if (language != null) queryParams['language'] = language;
 
-      final response = await _httpClient.get(
-        '/education',
+      final response = await _apiService.dio.get(
+        '/education/lessons',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final lessons = response.data['lessons'] as List<dynamic>? ?? [];
+        return lessons
+            .map(
+              (json) => EducationLesson.fromJson(json as Map<String, dynamic>),
+            )
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load education lessons: $e');
+    }
+  }
+
+  /// Get lesson by ID
+  Future<EducationLesson?> getLessonById(int lessonId) async {
+    try {
+      final response = await _apiService.dio.get(
+        '/education/lessons/$lessonId',
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final lessonData = response.data['lesson'];
+        if (lessonData != null) {
+          return EducationLesson.fromJson(lessonData as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to load lesson: $e');
+    }
+  }
+
+  /// Search lessons
+  Future<List<EducationLesson>> searchLessons({
+    required String query,
+    String? category,
+    String? level,
+    String? language,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{'query': query};
+      if (category != null) queryParams['category'] = category;
+      if (level != null) queryParams['level'] = level;
+      if (language != null) queryParams['language'] = language;
+
+      final response = await _apiService.dio.get(
+        '/education/search',
         queryParameters: queryParams,
       );
 
-      if (response.statusCode == 200) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
-
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          final lessonsData = apiResponse.data as Map<String, dynamic>;
-          final lessonsList = lessonsData['lessons'] as List<dynamic>;
-
-          return lessonsList
-              .map(
-                (json) =>
-                    EducationLesson.fromJson(json as Map<String, dynamic>),
-              )
-              .toList();
-        }
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final searchResults =
+            response.data['searchResults'] as List<dynamic>? ?? [];
+        return searchResults
+            .map(
+              (json) => EducationLesson.fromJson(json as Map<String, dynamic>),
+            )
+            .toList();
       }
-
       return [];
     } catch (e) {
-      debugPrint('Error fetching education lessons: $e');
-      return [];
-    }
-  }
-
-  /// Get education lesson by ID
-  Future<EducationLesson?> getEducationLessonById(String lessonId) async {
-    try {
-      final response = await _httpClient.get('/education/$lessonId');
-
-      if (response.statusCode == 200) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
-
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          return EducationLesson.fromJson(
-            apiResponse.data as Map<String, dynamic>,
-          );
-        }
-      }
-
-      return null;
-    } catch (e) {
-      debugPrint('Error fetching education lesson: $e');
-      return null;
-    }
-  }
-
-  /// Search education lessons
-  Future<List<EducationLesson>> searchEducationLessons(String query) async {
-    try {
-      final response = await _httpClient.get(
-        '/education/search',
-        queryParameters: {'q': query},
-      );
-
-      if (response.statusCode == 200) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
-
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          final lessonsData = apiResponse.data as Map<String, dynamic>;
-          final lessonsList = lessonsData['lessons'] as List<dynamic>;
-
-          return lessonsList
-              .map(
-                (json) =>
-                    EducationLesson.fromJson(json as Map<String, dynamic>),
-              )
-              .toList();
-        }
-      }
-
-      return [];
-    } catch (e) {
-      debugPrint('Error searching education lessons: $e');
-      return [];
-    }
-  }
-
-  /// Get lessons by category
-  Future<List<EducationLesson>> getLessonsByCategory(String category) async {
-    return getEducationLessons(category: category);
-  }
-
-  /// Get user's education progress
-  Future<List<EducationProgress>> getUserProgress(String userId) async {
-    try {
-      final response = await _httpClient.get(
-        '/education/progress',
-        queryParameters: {'userId': userId},
-      );
-
-      if (response.statusCode == 200) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
-
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          final progressData = apiResponse.data as Map<String, dynamic>;
-          final progressList = progressData['progress'] as List<dynamic>;
-
-          return progressList
-              .map(
-                (json) =>
-                    EducationProgress.fromJson(json as Map<String, dynamic>),
-              )
-              .toList();
-        }
-      }
-
-      return [];
-    } catch (e) {
-      debugPrint('Error fetching user progress: $e');
-      return [];
-    }
-  }
-
-  /// Update lesson progress
-  Future<EducationProgress?> updateLessonProgress({
-    required String userId,
-    required String lessonId,
-    required double progressPercentage,
-    int? timeSpent,
-    bool? isCompleted,
-    Map<String, dynamic>? quizResults,
-  }) async {
-    try {
-      final requestData = {
-        'userId': userId,
-        'lessonId': lessonId,
-        'progressPercentage': progressPercentage,
-        'timeSpent': timeSpent,
-        'isCompleted': isCompleted,
-        'quizResults': quizResults,
-      };
-
-      final response = await _httpClient.post(
-        '/education/progress',
-        data: requestData,
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
-
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          return EducationProgress.fromJson(
-            apiResponse.data as Map<String, dynamic>,
-          );
-        }
-      }
-
-      return null;
-    } catch (e) {
-      debugPrint('Error updating lesson progress: $e');
-      return null;
-    }
-  }
-
-  /// Mark lesson as completed
-  Future<bool> markLessonCompleted(String userId, String lessonId) async {
-    final progress = await updateLessonProgress(
-      userId: userId,
-      lessonId: lessonId,
-      progressPercentage: 100.0,
-      isCompleted: true,
-    );
-    return progress != null;
-  }
-
-  /// Get education categories
-  Future<List<String>> getEducationCategories() async {
-    try {
-      final response = await _httpClient.get('/education/categories');
-
-      if (response.statusCode == 200) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
-
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          final categoriesData = apiResponse.data as Map<String, dynamic>;
-          final categoriesList = categoriesData['categories'] as List<dynamic>;
-
-          return categoriesList.map((category) => category.toString()).toList();
-        }
-      }
-
-      return [];
-    } catch (e) {
-      debugPrint('Error fetching education categories: $e');
-      return [];
+      throw Exception('Failed to search lessons: $e');
     }
   }
 
   /// Get recommended lessons for user
-  Future<List<EducationLesson>> getRecommendedLessons(String userId) async {
+  Future<List<EducationLesson>> getRecommendedLessons(int userId) async {
     try {
-      final response = await _httpClient.get(
+      final response = await _apiService.dio.get(
         '/education/recommendations/$userId',
       );
 
-      if (response.statusCode == 200) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final recommendations =
+            response.data['recommendations'] as List<dynamic>? ?? [];
+        return recommendations
+            .map(
+              (json) => EducationLesson.fromJson(json as Map<String, dynamic>),
+            )
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load recommended lessons: $e');
+    }
+  }
 
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          final lessonsData = apiResponse.data as Map<String, dynamic>;
-          final lessonsList = lessonsData['recommendations'] as List<dynamic>;
+  /// Get lessons by category with progress info
+  Future<List<LessonWithProgress>> getLessonsByCategory({
+    required String category,
+    int? userId,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (userId != null) queryParams['userId'] = userId;
 
-          return lessonsList
+      final response = await _apiService.dio.get(
+        '/education/categories/$category/lessons',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        // Check if we have lessons with progress or just lessons
+        if (response.data['lessonsWithProgress'] != null) {
+          final lessonsWithProgress =
+              response.data['lessonsWithProgress'] as List<dynamic>? ?? [];
+          return lessonsWithProgress
               .map(
                 (json) =>
-                    EducationLesson.fromJson(json as Map<String, dynamic>),
+                    LessonWithProgress.fromJson(json as Map<String, dynamic>),
+              )
+              .toList();
+        } else if (response.data['lessons'] != null) {
+          final lessons = response.data['lessons'] as List<dynamic>? ?? [];
+          return lessons
+              .map(
+                (json) => LessonWithProgress(
+                  lesson: EducationLesson.fromJson(
+                    json as Map<String, dynamic>,
+                  ),
+                  progress: null,
+                ),
               )
               .toList();
         }
       }
-
       return [];
     } catch (e) {
-      debugPrint('Error fetching recommended lessons: $e');
-      return [];
+      throw Exception('Failed to load lessons by category: $e');
     }
   }
 
-  /// Get education statistics
-  Future<Map<String, dynamic>> getEducationStatistics(String userId) async {
+  /// Get user's education progress
+  Future<EducationProgressResponse> getUserProgress(int userId) async {
     try {
-      final response = await _httpClient.get('/education/statistics/$userId');
+      print('🌐 API: Making request to /education/progress/$userId');
+      final response = await _apiService.dio.get('/education/progress/$userId');
+
+      print('🌐 API: Response status: ${response.statusCode}');
+      print('🌐 API: Response data type: ${response.data.runtimeType}');
 
       if (response.statusCode == 200) {
-        final apiResponse = ApiResponse.fromJson(
-          response.data as Map<String, dynamic>,
-          (data) => data,
-        );
+        print('🌐 API: Response success field: ${response.data['success']}');
 
-        if (apiResponse.isSuccess && apiResponse.data != null) {
-          return apiResponse.data as Map<String, dynamic>;
+        if (response.data['success'] == true) {
+          print('🌐 API: Parsing response...');
+          final result = EducationProgressResponse.fromJson(response.data);
+          print(
+            '🌐 API: Parsed successfully with ${result.progress.length} progress items',
+          );
+          return result;
         }
       }
 
-      return {};
+      print('🌐 API: Request failed or success=false');
+      return const EducationProgressResponse(
+        success: false,
+        message: 'Failed to load progress',
+      );
     } catch (e) {
-      debugPrint('Error fetching education statistics: $e');
-      return {};
+      print('🌐 API: Exception occurred: $e');
+      throw Exception('Failed to load user progress: $e');
+    }
+  }
+
+  /// Get progress for a specific lesson
+  Future<SingleEducationProgressResponse> getLessonProgress(
+    int userId,
+    int lessonId,
+  ) async {
+    try {
+      print('🌐 API: Making request to /education/progress/$userId/$lessonId');
+      final response = await _apiService.dio.get(
+        '/education/progress/$userId/$lessonId',
+      );
+
+      print('🌐 API: Lesson progress response status: ${response.statusCode}');
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        print('🌐 API: Parsing lesson progress response...');
+        final result = SingleEducationProgressResponse.fromJson(response.data);
+        print('🌐 API: Lesson progress parsed successfully');
+        return result;
+      }
+
+      print('🌐 API: Lesson progress request failed or success=false');
+      return const SingleEducationProgressResponse(
+        success: false,
+        message: 'Failed to load lesson progress',
+      );
+    } catch (e) {
+      print('🌐 API: Exception occurred loading lesson progress: $e');
+      throw Exception('Failed to load lesson progress: $e');
+    }
+  }
+
+  /// Get user's learning dashboard
+  Future<EducationDashboard?> getUserDashboard(int userId) async {
+    try {
+      final response = await _apiService.dio.get(
+        '/education/dashboard/$userId',
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final dashboardData = response.data['dashboard'];
+        if (dashboardData != null) {
+          return EducationDashboard.fromJson(
+            dashboardData as Map<String, dynamic>,
+          );
+        }
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to load user dashboard: $e');
+    }
+  }
+
+  /// Save lesson notes
+  Future<bool> saveLessonNotes({
+    required int lessonId,
+    required int userId,
+    required String notes,
+  }) async {
+    try {
+      final response = await _apiService.dio.put(
+        '/education/lessons/$lessonId/notes',
+        data: {'userId': userId, 'notes': notes},
+      );
+
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to save lesson notes: $e');
+    }
+  }
+
+  /// Mark lesson as completed
+  Future<bool> markLessonComplete({
+    required int lessonId,
+    required int userId,
+    int? timeSpentMinutes,
+    double? quizScore,
+  }) async {
+    try {
+      final data = <String, dynamic>{'userId': userId};
+      if (timeSpentMinutes != null) data['timeSpentMinutes'] = timeSpentMinutes;
+      if (quizScore != null) data['quizScore'] = quizScore;
+
+      final response = await _apiService.dio.post(
+        '/education/lessons/$lessonId/complete',
+        data: data,
+      );
+
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to mark lesson as completed: $e');
+    }
+  }
+
+  /// Update lesson progress
+  Future<bool> updateLessonProgress({
+    required int lessonId,
+    required int userId,
+    required double progressPercentage,
+    int? timeSpentMinutes,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'userId': userId,
+        'progressPercentage': progressPercentage,
+      };
+      if (timeSpentMinutes != null) data['timeSpentMinutes'] = timeSpentMinutes;
+
+      final response = await _apiService.dio.put(
+        '/education/lessons/$lessonId/progress',
+        data: data,
+      );
+
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to update lesson progress: $e');
+    }
+  }
+
+  // ==================== ADMIN EDUCATION ENDPOINTS ====================
+
+  /// Get all lessons (admin)
+  Future<List<EducationLesson>> getAllLessons() async {
+    try {
+      final response = await _apiService.dio.get('/education/admin/lessons');
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final lessons = response.data['lessons'] as List<dynamic>? ?? [];
+        return lessons
+            .map(
+              (json) => EducationLesson.fromJson(json as Map<String, dynamic>),
+            )
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load all lessons: $e');
+    }
+  }
+
+  /// Create new lesson (admin)
+  Future<EducationLesson?> createLesson(Map<String, dynamic> lessonData) async {
+    try {
+      final response = await _apiService.dio.post(
+        '/education/admin/lessons',
+        data: lessonData,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final lessonData = response.data['lesson'];
+        if (lessonData != null) {
+          return EducationLesson.fromJson(lessonData as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to create lesson: $e');
+    }
+  }
+
+  /// Update lesson (admin)
+  Future<EducationLesson?> updateLesson(
+    int lessonId,
+    Map<String, dynamic> lessonData,
+  ) async {
+    try {
+      final response = await _apiService.dio.put(
+        '/education/admin/lessons/$lessonId',
+        data: lessonData,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final lessonData = response.data['lesson'];
+        if (lessonData != null) {
+          return EducationLesson.fromJson(lessonData as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to update lesson: $e');
+    }
+  }
+
+  /// Delete lesson (admin)
+  Future<bool> deleteLesson(int lessonId) async {
+    try {
+      final response = await _apiService.dio.delete(
+        '/education/admin/lessons/$lessonId',
+      );
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to delete lesson: $e');
+    }
+  }
+
+  /// Get education analytics (admin)
+  Future<EducationAnalytics?> getEducationAnalytics() async {
+    try {
+      final response = await _apiService.dio.get('/education/admin/analytics');
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final analyticsData = response.data['analytics'];
+        if (analyticsData != null) {
+          return EducationAnalytics.fromJson(
+            analyticsData as Map<String, dynamic>,
+          );
+        }
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to load education analytics: $e');
     }
   }
 }
+
+/// Provider for EducationService
+final educationServiceProvider = Provider<EducationService>((ref) {
+  final apiService = ApiService.instance;
+  return EducationService(apiService);
+});

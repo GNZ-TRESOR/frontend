@@ -1,70 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/constants/app_constants.dart';
-import '../onboarding/onboarding_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
-class SplashSlide {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String description;
-  final Color color;
+import '../../core/theme/app_colors.dart';
+import '../../core/utils/app_constants.dart';
+import '../../core/config/app_config.dart';
+import '../../core/providers/auth_provider.dart';
+import '../auth/login_screen.dart';
+import '../dashboard/role_dashboard.dart';
 
-  SplashSlide({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.description,
-    required this.color,
-  });
-}
-
-class SplashScreen extends StatefulWidget {
+/// Professional splash screen with slideshow for Family Planning Platform
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with TickerProviderStateMixin {
-  late PageController _pageController;
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  
+  late AnimationController _logoController;
+  late AnimationController _slideController;
+  
+  late Animation<double> _logoAnimation;
+  late Animation<double> _slideAnimation;
+  
+  PageController _pageController = PageController();
+  Timer? _autoSlideTimer;
+  
   int _currentSlide = 0;
-
-  final List<SplashSlide> _slides = [
-    SplashSlide(
-      icon: Icons.favorite_rounded,
-      title: 'UBUZIMA',
-      subtitle: 'Ubuzima bw\'imyororokere',
-      description:
-          'Your trusted companion for family planning and reproductive health',
-      color: AppTheme.primaryColor,
+  bool _isLoading = true;
+  bool _showSlideshow = false;
+  
+  final List<FamilyPlanningSlide> _slides = [
+    FamilyPlanningSlide(
+      title: 'Ubuzima Family Planning',
+      subtitle: 'Your comprehensive reproductive health companion',
+      icon: Icons.favorite,
+      color: AppColors.primary,
+      description: 'Track your menstrual cycle, plan pregnancy, and access expert guidance for your family planning journey',
     ),
-    SplashSlide(
-      icon: Icons.health_and_safety_rounded,
-      title: 'HEALTH TRACKING',
-      subtitle: 'Gukurikirana ubuzima',
-      description:
-          'Track your health journey with personalized insights and reminders',
-      color: AppTheme.secondaryColor,
+    FamilyPlanningSlide(
+      title: 'Expert Health Guidance',
+      subtitle: 'Connect with certified health workers and specialists',
+      icon: Icons.medical_services,
+      color: AppColors.healthWorkerBlue,
+      description: 'Get personalized advice from healthcare professionals specialized in reproductive health',
     ),
-    SplashSlide(
-      icon: Icons.people_rounded,
-      title: 'COMMUNITY SUPPORT',
-      subtitle: 'Ubufasha bw\'abaturage',
-      description:
-          'Connect with health workers and join supportive communities',
-      color: AppTheme.accentColor,
+    FamilyPlanningSlide(
+      title: 'Comprehensive Tracking',
+      subtitle: 'Monitor your reproductive health with precision',
+      icon: Icons.analytics,
+      color: AppColors.tertiary,
+      description: 'Track menstrual cycles, symptoms, medications, and health records in one secure platform',
     ),
-    SplashSlide(
-      icon: Icons.school_rounded,
-      title: 'EDUCATION',
-      subtitle: 'Kwiga no guteza imbere',
-      description: 'Access comprehensive health education in your language',
-      color: AppTheme.successColor,
+    FamilyPlanningSlide(
+      title: 'Community Support',
+      subtitle: 'Join support groups and connect with others',
+      icon: Icons.group,
+      color: AppColors.supportPurple,
+      description: 'Share experiences and get support from a caring community on similar journeys',
+    ),
+    FamilyPlanningSlide(
+      title: 'Secure & Private',
+      subtitle: 'Your health data is protected with enterprise-grade security',
+      icon: Icons.security,
+      color: AppColors.adminPurple,
+      description: 'Complete privacy and confidentiality for all your reproductive health information',
     ),
   ];
 
@@ -72,323 +76,481 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _startSlideshow();
+    _startInitialization();
   }
 
   void _initializeAnimations() {
-    _pageController = PageController();
-
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+    // Logo animation with elastic effect
+    _logoController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
+    _logoAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
+    );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
-
-    _fadeController.forward();
+    // Slide animation
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeInOut),
+    );
   }
 
-  void _startSlideshow() {
-    // Auto-advance slides every 3 seconds
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      _autoAdvanceSlides();
-    });
+  Future<void> _startInitialization() async {
+    // Start logo animation
+    _logoController.forward();
+    
+    // Initialize app services
+    await _initializeServices();
+    
+    // Show slideshow after initialization
+    await Future.delayed(const Duration(milliseconds: 2500));
+    
+    if (mounted) {
+      setState(() {
+        _showSlideshow = true;
+        _isLoading = false;
+      });
+      
+      _slideController.forward();
+      _startAutoSlide();
+    }
   }
 
-  void _autoAdvanceSlides() {
-    if (!mounted) return;
+  Future<void> _initializeServices() async {
+    try {
+      // Initialize app configuration
+      await AppConfig.initialize();
+      
+      // Add artificial delay for better UX
+      await Future.delayed(const Duration(milliseconds: 2000));
+      
+    } catch (e) {
+      debugPrint('🔴 Initialization error: $e');
+    }
+  }
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-
-      if (_currentSlide < _slides.length - 1) {
-        _currentSlide++;
-        _pageController.animateToPage(
-          _currentSlide,
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOut,
-        );
-        _autoAdvanceSlides(); // Continue to next slide
+  void _startAutoSlide() {
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (mounted && _currentSlide < _slides.length - 1) {
+        _nextSlide();
       } else {
-        // All slides shown, navigate to onboarding
-        _navigateToNext();
+        _finishSplash();
       }
     });
   }
 
-  void _navigateToNext() {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder:
-                (context, animation, secondaryAnimation) =>
-                    const OnboardingScreen(),
-            transitionsBuilder: (
-              context,
-              animation,
-              secondaryAnimation,
-              child,
-            ) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 800),
-          ),
-        );
-      }
-    });
+  void _nextSlide() {
+    if (_currentSlide < _slides.length - 1) {
+      setState(() {
+        _currentSlide++;
+      });
+      _pageController.animateToPage(
+        _currentSlide,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      _finishSplash();
+    }
+  }
+
+  void _finishSplash() {
+    _autoSlideTimer?.cancel();
+    
+    final authState = ref.read(authProvider);
+    
+    if (authState.isAuthenticated && authState.user != null) {
+      _navigateToRoleDashboard();
+    } else {
+      _navigateToLogin();
+    }
+  }
+
+  void _navigateToRoleDashboard() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const RoleDashboard(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 800),
+      ),
+    );
+  }
+
+  void _navigateToLogin() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    _logoController.dispose();
+    _slideController.dispose();
     _pageController.dispose();
-    _fadeController.dispose();
+    _autoSlideTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
-
     return Scaffold(
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: PageView.builder(
-          controller: _pageController,
-          itemCount: _slides.length,
-          onPageChanged: (index) {
-            setState(() {
-              _currentSlide = index;
-            });
-          },
-          itemBuilder: (context, index) {
-            final slide = _slides[index];
-            return _buildSlide(slide, size, isTablet);
-          },
+      backgroundColor: AppColors.primary,
+      body: SafeArea(
+        child: _showSlideshow ? _buildSlideshow() : _buildInitialSplash(),
+      ),
+    );
+  }
+
+  Widget _buildInitialSplash() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.primary,
+            AppColors.primary.withOpacity(0.8),
+            AppColors.primaryLight.withOpacity(0.6),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animated logo
+            AnimatedBuilder(
+              animation: _logoAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _logoAnimation.value,
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 30,
+                          offset: const Offset(0, 15),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.favorite,
+                      size: 70,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 40),
+            
+            // App name
+            FadeTransition(
+              opacity: _logoAnimation,
+              child: Text(
+                AppConstants.appName,
+                style: const TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            
+            const SizedBox(height: 15),
+            
+            // Tagline
+            FadeTransition(
+              opacity: _logoAnimation,
+              child: Text(
+                'Family Planning & Reproductive Health',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white.withOpacity(0.9),
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Subtitle
+            FadeTransition(
+              opacity: _logoAnimation,
+              child: Text(
+                'Empowering your reproductive health journey',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.7),
+                  fontWeight: FontWeight.w300,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            
+            const SizedBox(height: 80),
+            
+            // Loading indicator
+            if (_isLoading)
+              Column(
+                children: [
+                  SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
+                      strokeWidth: 4,
+                    ),
+                  ),
+                  const SizedBox(height: 25),
+                  Text(
+                    'Initializing your health platform...',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSlide(SplashSlide slide, Size size, bool isTablet) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            slide.color,
-            slide.color.withValues(alpha: 0.8),
-            slide.color.withValues(alpha: 0.6),
-          ],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Background Pattern
-          Positioned.fill(
-            child: CustomPaint(painter: _BackgroundPatternPainter()),
-          ),
-
-          // Main Content
-          Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isTablet ? AppTheme.spacing48 : AppTheme.spacing32,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Icon Container
-                  Container(
-                    width: isTablet ? 180 : 140,
-                    height: isTablet ? 180 : 140,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(isTablet ? 90 : 70),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          blurRadius: 30,
-                          spreadRadius: 10,
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      slide.icon,
-                      size: isTablet ? 80 : 60,
-                      color: slide.color,
-                    ),
-                  ).animate().scale(
-                    delay: 200.ms,
-                    duration: 800.ms,
-                    curve: Curves.elasticOut,
-                  ),
-
-                  SizedBox(height: size.height * 0.08),
-
-                  // Title
-                  Text(
-                        slide.title,
-                        style: AppTheme.headingLarge.copyWith(
-                          color: Colors.white,
-                          fontSize: isTablet ? 42 : 36,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 3,
-                        ),
-                        textAlign: TextAlign.center,
-                      )
-                      .animate()
-                      .fadeIn(delay: 500.ms)
-                      .slideY(
-                        begin: 0.3,
-                        duration: 800.ms,
-                        curve: Curves.easeOut,
-                      ),
-
-                  SizedBox(height: AppTheme.spacing16),
-
-                  // Subtitle (Kinyarwanda)
-                  Text(
-                        slide.subtitle,
-                        style: AppTheme.headingSmall.copyWith(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: isTablet ? 22 : 18,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        textAlign: TextAlign.center,
-                      )
-                      .animate()
-                      .fadeIn(delay: 700.ms)
-                      .slideY(
-                        begin: 0.3,
-                        duration: 800.ms,
-                        curve: Curves.easeOut,
-                      ),
-
-                  SizedBox(height: AppTheme.spacing24),
-
-                  // Description
-                  Text(
-                        slide.description,
-                        style: AppTheme.bodyLarge.copyWith(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: isTablet ? 18 : 16,
-                          height: 1.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      )
-                      .animate()
-                      .fadeIn(delay: 900.ms)
-                      .slideY(
-                        begin: 0.3,
-                        duration: 800.ms,
-                        curve: Curves.easeOut,
-                      ),
+  Widget _buildSlideshow() {
+    return AnimatedBuilder(
+      animation: _slideAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _slideAnimation.value,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  _slides[_currentSlide].color,
+                  _slides[_currentSlide].color.withOpacity(0.8),
                 ],
               ),
             ),
-          ),
-
-          // Progress Indicators
-          Positioned(
-            bottom: 80,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _slides.length,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentSlide == index ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color:
-                        _currentSlide == index
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(4),
+            child: Column(
+              children: [
+                // Header with skip button
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Welcome to ${AppConstants.appName}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _finishSplash,
+                        child: const Text(
+                          'Skip',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ).animate().fadeIn(delay: 1200.ms),
+                
+                // Slideshow content
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentSlide = index;
+                      });
+                    },
+                    itemCount: _slides.length,
+                    itemBuilder: (context, index) {
+                      return _buildSlide(_slides[index]);
+                    },
+                  ),
+                ),
+                
+                // Page indicators
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _slides.length,
+                      (index) => _buildPageIndicator(index),
+                    ),
+                  ),
+                ),
+                
+                // Continue button
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _currentSlide == _slides.length - 1 
+                          ? _finishSplash 
+                          : _nextSlide,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: _slides[_currentSlide].color,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 6,
+                      ),
+                      child: Text(
+                        _currentSlide == _slides.length - 1 ? 'Get Started' : 'Continue',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+        );
+      },
+    );
+  }
 
-          // Version Info
-          Positioned(
-            bottom: AppTheme.spacing24,
-            left: 0,
-            right: 0,
-            child: Text(
-              'Version ${AppConstants.appVersion}',
-              style: AppTheme.bodySmall.copyWith(
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(delay: 1400.ms),
+  Widget _buildSlide(FamilyPlanningSlide slide) {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Icon
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              slide.icon,
+              size: 60,
+              color: Colors.white,
+            ),
+          ),
+          
+          const SizedBox(height: 50),
+          
+          // Title
+          Text(
+            slide.title,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 25),
+          
+          // Subtitle
+          Text(
+            slide.subtitle,
+            style: TextStyle(
+              fontSize: 20,
+              color: Colors.white.withOpacity(0.9),
+              fontWeight: FontWeight.w400,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 35),
+          
+          // Description
+          Text(
+            slide.description,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.8),
+              height: 1.6,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
+
+  Widget _buildPageIndicator(int index) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: _currentSlide == index ? 28 : 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: _currentSlide == index 
+            ? Colors.white 
+            : Colors.white.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(5),
+      ),
+    );
+  }
 }
 
-class _BackgroundPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.05)
-          ..style = PaintingStyle.fill;
+/// Data class for family planning splash slides
+class FamilyPlanningSlide {
+  final String title;
+  final String subtitle;
+  final String description;
+  final IconData icon;
+  final Color color;
 
-    // Draw floating circles
-    for (int i = 0; i < 20; i++) {
-      final x = (i * 0.3 * size.width) % size.width;
-      final y = (i * 0.4 * size.height) % size.height;
-      final radius = (i % 3 + 1) * 15.0;
-
-      canvas.drawCircle(Offset(x, y), radius, paint);
-    }
-
-    // Draw curved lines
-    final linePaint =
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.03)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2;
-
-    final path = Path();
-    path.moveTo(0, size.height * 0.3);
-    path.quadraticBezierTo(
-      size.width * 0.5,
-      size.height * 0.1,
-      size.width,
-      size.height * 0.4,
-    );
-    canvas.drawPath(path, linePaint);
-
-    final path2 = Path();
-    path2.moveTo(0, size.height * 0.7);
-    path2.quadraticBezierTo(
-      size.width * 0.3,
-      size.height * 0.9,
-      size.width,
-      size.height * 0.6,
-    );
-    canvas.drawPath(path2, linePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  FamilyPlanningSlide({
+    required this.title,
+    required this.subtitle,
+    required this.description,
+    required this.icon,
+    required this.color,
+  });
 }

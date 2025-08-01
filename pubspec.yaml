@@ -28,6 +28,10 @@ dependencies:
   dio: ^5.4.0
   retrofit: ^4.0.3
   json_annotation: ^4.8.1
+  freezed_annotation: ^2.4.1
+
+  # AI and TTS
+  flutter_tts: ^4.0.2
 
   # Database & Storage
   sqflite: ^2.3.0
@@ -35,6 +39,9 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   path_provider: ^2.1.2
+
+  # File handling
+  image_picker: ^1.0.4
 
   # Database Connection (HTTP-based)
   # postgres: ^2.6.2  # Not needed for HTTP API approach
@@ -44,6 +51,7 @@ dependencies:
   crypto: ^3.0.3
   encrypt: ^5.0.1
   local_auth: ^2.1.7
+  flutter_secure_storage: ^9.0.0
 
   # Location & Maps
   geolocator: ^10.1.0
@@ -52,16 +60,15 @@ dependencies:
   location: ^5.0.3
 
   # Media & Files
-  image_picker: ^1.0.7
   # file_picker: ^6.1.1
   cached_network_image: ^3.3.1
   permission_handler: ^11.2.0
 
   # Audio & Voice - Essential for voice-first architecture (Android compatible versions)
   # speech_to_text: ^6.3.0  # Temporarily disabled for Android compatibility
-  flutter_tts: ^3.8.5     # Compatible with current Flutter
+  # flutter_tts: ^3.8.5     # Already added above in AI and TTS section
   audioplayers: ^5.2.1
-  # record: ^5.0.4  # Temporarily disabled due to compatibility issues
+  # record: ^6.0.0  # Temporarily disabled due to compatibility issues
 
   # Notifications
   firebase_core: ^2.24.2
@@ -100,6 +107,13 @@ dependencies:
   csv: ^5.0.2
   web_socket_channel: ^2.4.0
 
+  # Calendar widget for menstrual cycle tracking
+  table_calendar: ^3.0.9
+
+  # Map functionality - completely free
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -108,6 +122,8 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   mockito: ^5.4.2
   build_runner: ^2.4.7
+  json_serializable: ^6.7.1
+  freezed: ^2.4.7
 
   # Code Generation (not needed for simplified approach)
   # build_runner: ^2.4.7
@@ -115,6 +131,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   assets:
     - assets/images/

@@ -1,478 +1,450 @@
-import 'dart:async';
-import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as path;
-import 'package:shared_preferences/shared_preferences.dart';
 
-/// Comprehensive file upload service for Ubuzima app
-/// Handles image uploads, document uploads, and file management
-class FileUploadService extends ChangeNotifier {
-  static final FileUploadService _instance = FileUploadService._internal();
-  factory FileUploadService() => _instance;
-  FileUploadService._internal();
+import '../models/file_upload_response.dart';
+import '../config/app_config.dart';
+import 'api_service.dart';
 
-  // Configuration
-  static const String baseUrl = 'http://10.0.2.2:8080/api/v1';
-  static const int maxFileSize = 10 * 1024 * 1024; // 10MB
-  static const List<String> allowedImageTypes = [
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'webp',
-  ];
-  static const List<String> allowedDocumentTypes = [
-    'pdf',
-    'doc',
-    'docx',
-    'txt',
-  ];
+/// File Upload Service for handling file uploads to the backend
+class FileUploadService {
+  final ApiService _apiService;
 
-  // Upload state
-  bool _isUploading = false;
-  double _uploadProgress = 0.0;
-  String? _lastError;
-  List<UploadedFile> _uploadedFiles = [];
+  FileUploadService(this._apiService);
 
-  // Getters
-  bool get isUploading => _isUploading;
-  double get uploadProgress => _uploadProgress;
-  String? get lastError => _lastError;
-  List<UploadedFile> get uploadedFiles => _uploadedFiles;
-
-  /// Initialize file upload service
-  Future<void> initialize() async {
-    try {
-      await _loadUploadedFiles();
-      debugPrint('✅ File upload service initialized');
-    } catch (e) {
-      debugPrint('❌ File upload service initialization failed: $e');
-    }
-  }
-
-  /// Upload profile image
-  Future<String?> uploadProfileImage({
-    required Uint8List imageBytes,
-    required String fileName,
+  /// Upload a single file
+  Future<FileUploadResponse?> uploadFile({
+    required File file,
     String? userId,
+    String? fileType,
+    Function(int, int)? onProgress,
   }) async {
     try {
-      _setUploadState(true, 0.0, null);
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        if (userId != null) 'userId': userId,
+        if (fileType != null) 'type': fileType,
+      });
 
-      // Validate file
-      if (!_isValidImageFile(fileName)) {
-        throw Exception(
-          'Invalid image file type. Allowed: ${allowedImageTypes.join(', ')}',
-        );
-      }
-
-      if (imageBytes.length > maxFileSize) {
-        throw Exception(
-          'File size exceeds maximum limit of ${maxFileSize ~/ (1024 * 1024)}MB',
-        );
-      }
-
-      // Create multipart request
-      final uri = Uri.parse('$baseUrl/files/upload/profile-image');
-      final request = http.MultipartRequest('POST', uri);
-
-      // Add file
-      request.files.add(
-        http.MultipartFile.fromBytes('file', imageBytes, filename: fileName),
+      final response = await _apiService.dio.post(
+        '/files/upload',
+        data: formData,
+        onSendProgress: onProgress,
       );
 
-      // Add metadata
-      if (userId != null) {
-        request.fields['userId'] = userId;
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return FileUploadResponse.fromJson(response.data['data']);
       }
-      request.fields['type'] = 'profile_image';
-      request.fields['timestamp'] = DateTime.now().toIso8601String();
-
-      // Add auth header
-      final token = await _getAuthToken();
-      if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
-      }
-
-      // Send request with progress tracking
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        final fileUrl = responseData['data']['url'] as String;
-
-        // Save uploaded file info
-        final uploadedFile = UploadedFile(
-          id: responseData['data']['id'],
-          fileName: fileName,
-          fileUrl: fileUrl,
-          fileType: FileType.image,
-          uploadedAt: DateTime.now(),
-          size: imageBytes.length,
-        );
-
-        _uploadedFiles.add(uploadedFile);
-        await _saveUploadedFiles();
-
-        _setUploadState(false, 1.0, null);
-        debugPrint('✅ Profile image uploaded successfully: $fileUrl');
-        return fileUrl;
-      } else {
-        throw Exception(
-          'Upload failed: ${response.statusCode} - ${response.body}',
-        );
-      }
-    } catch (e) {
-      _setUploadState(false, 0.0, e.toString());
-      debugPrint('❌ Profile image upload failed: $e');
       return null;
-    }
-  }
-
-  /// Upload health document
-  Future<String?> uploadHealthDocument({
-    required Uint8List documentBytes,
-    required String fileName,
-    required String documentType,
-    String? userId,
-    Map<String, String>? metadata,
-  }) async {
-    try {
-      _setUploadState(true, 0.0, null);
-
-      // Validate file
-      if (!_isValidDocumentFile(fileName)) {
-        throw Exception(
-          'Invalid document file type. Allowed: ${allowedDocumentTypes.join(', ')}',
-        );
-      }
-
-      if (documentBytes.length > maxFileSize) {
-        throw Exception(
-          'File size exceeds maximum limit of ${maxFileSize ~/ (1024 * 1024)}MB',
-        );
-      }
-
-      // Create multipart request
-      final uri = Uri.parse('$baseUrl/files/upload/health-document');
-      final request = http.MultipartRequest('POST', uri);
-
-      // Add file
-      request.files.add(
-        http.MultipartFile.fromBytes('file', documentBytes, filename: fileName),
-      );
-
-      // Add fields
-      if (userId != null) {
-        request.fields['userId'] = userId;
-      }
-      request.fields['documentType'] = documentType;
-      request.fields['type'] = 'health_document';
-      request.fields['timestamp'] = DateTime.now().toIso8601String();
-
-      // Add metadata
-      if (metadata != null) {
-        request.fields['metadata'] = json.encode(metadata);
-      }
-
-      // Add auth header
-      final token = await _getAuthToken();
-      if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
-      }
-
-      // Send request
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        final fileUrl = responseData['data']['url'] as String;
-
-        // Save uploaded file info
-        final uploadedFile = UploadedFile(
-          id: responseData['data']['id'],
-          fileName: fileName,
-          fileUrl: fileUrl,
-          fileType: FileType.document,
-          uploadedAt: DateTime.now(),
-          size: documentBytes.length,
-          metadata: metadata,
-        );
-
-        _uploadedFiles.add(uploadedFile);
-        await _saveUploadedFiles();
-
-        _setUploadState(false, 1.0, null);
-        debugPrint('✅ Health document uploaded successfully: $fileUrl');
-        return fileUrl;
-      } else {
-        throw Exception(
-          'Upload failed: ${response.statusCode} - ${response.body}',
-        );
-      }
     } catch (e) {
-      _setUploadState(false, 0.0, e.toString());
-      debugPrint('❌ Health document upload failed: $e');
-      return null;
+      debugPrint('File upload error: $e');
+      rethrow;
     }
   }
 
   /// Upload multiple files
-  Future<List<String>> uploadMultipleFiles({
-    required List<FileUploadData> files,
+  Future<List<FileUploadResponse>> uploadMultipleFiles({
+    required List<File> files,
     String? userId,
+    String? fileType,
+    Function(int, int)? onProgress,
   }) async {
-    final uploadedUrls = <String>[];
-
     try {
-      _setUploadState(true, 0.0, null);
+      final formData = FormData.fromMap({
+        'files': await Future.wait(
+          files.map((file) async {
+            final fileName = file.path.split('/').last;
+            return MultipartFile.fromFile(file.path, filename: fileName);
+          }),
+        ),
+        if (userId != null) 'userId': userId,
+        if (fileType != null) 'type': fileType,
+      });
 
-      for (int i = 0; i < files.length; i++) {
-        final file = files[i];
-        final progress = (i / files.length);
-        _setUploadState(true, progress, null);
-
-        String? url;
-        if (file.fileType == FileType.image) {
-          url = await uploadProfileImage(
-            imageBytes: file.bytes,
-            fileName: file.fileName,
-            userId: userId,
-          );
-        } else if (file.fileType == FileType.document) {
-          url = await uploadHealthDocument(
-            documentBytes: file.bytes,
-            fileName: file.fileName,
-            documentType: file.metadata?['documentType'] ?? 'general',
-            userId: userId,
-            metadata: file.metadata,
-          );
-        }
-
-        if (url != null) {
-          uploadedUrls.add(url);
-        }
-      }
-
-      _setUploadState(false, 1.0, null);
-      debugPrint(
-        '✅ Multiple files uploaded: ${uploadedUrls.length}/${files.length}',
+      final response = await _apiService.dio.post(
+        '/files/upload-multiple',
+        data: formData,
+        onSendProgress: onProgress,
       );
-      return uploadedUrls;
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> dataList = response.data['data'];
+        return dataList
+            .map((item) => FileUploadResponse.fromJson(item))
+            .toList();
+      }
+      return [];
     } catch (e) {
-      _setUploadState(false, 0.0, e.toString());
-      debugPrint('❌ Multiple files upload failed: $e');
-      return uploadedUrls;
+      debugPrint('Multiple file upload error: $e');
+      rethrow;
     }
   }
 
-  /// Delete uploaded file
-  Future<bool> deleteFile(String fileId) async {
+  /// Upload profile image
+  Future<FileUploadResponse?> uploadProfileImage({
+    required File file,
+    String? userId,
+    Function(int, int)? onProgress,
+  }) async {
     try {
-      final uri = Uri.parse('$baseUrl/files/$fileId');
-      final token = await _getAuthToken();
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        if (userId != null) 'userId': userId,
+      });
 
-      final response = await http.delete(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+      final response = await _apiService.dio.post(
+        '/files/upload/profile-image',
+        data: formData,
+        onSendProgress: onProgress,
       );
 
-      if (response.statusCode == 200) {
-        // Remove from local list
-        _uploadedFiles.removeWhere((file) => file.id == fileId);
-        await _saveUploadedFiles();
-
-        debugPrint('✅ File deleted successfully: $fileId');
-        notifyListeners();
-        return true;
-      } else {
-        throw Exception('Delete failed: ${response.statusCode}');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return FileUploadResponse.fromJson(response.data['data']);
       }
+      return null;
     } catch (e) {
-      debugPrint('❌ File deletion failed: $e');
-      _lastError = e.toString();
-      notifyListeners();
+      debugPrint('Profile image upload error: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload health document
+  Future<FileUploadResponse?> uploadHealthDocument({
+    required File file,
+    String? userId,
+    String? documentType,
+    String? metadata,
+    Function(int, int)? onProgress,
+  }) async {
+    try {
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        if (userId != null) 'userId': userId,
+        if (documentType != null) 'documentType': documentType,
+        if (metadata != null) 'metadata': metadata,
+      });
+
+      final response = await _apiService.dio.post(
+        '/files/upload/health-document',
+        data: formData,
+        onSendProgress: onProgress,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return FileUploadResponse.fromJson(response.data['data']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Health document upload error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user files
+  Future<List<FileUploadResponse>> getUserFiles(String userId) async {
+    try {
+      final response = await _apiService.dio.get('/files/user/$userId');
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> dataList = response.data['data'];
+        return dataList
+            .map((item) => FileUploadResponse.fromJson(item))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Get user files error: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete file
+  Future<bool> deleteFile(String fileId) async {
+    try {
+      final response = await _apiService.dio.delete('/files/$fileId');
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      debugPrint('Delete file error: $e');
       return false;
     }
   }
 
   /// Get file download URL
-  Future<String?> getFileDownloadUrl(String fileId) async {
-    try {
-      final uri = Uri.parse('$baseUrl/files/$fileId/download-url');
-      final token = await _getAuthToken();
+  String getDownloadUrl(String fileId) {
+    return '${AppConfig.baseUrl}/files/download/$fileId';
+  }
 
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+  // Education-specific upload methods
+
+  /// Upload education video
+  Future<FileUploadResponse?> uploadEducationVideo({
+    required File file,
+    String? userId,
+    int? lessonId,
+    String? title,
+    String? description,
+    Function(int, int)? onProgress,
+  }) async {
+    try {
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        if (userId != null) 'userId': userId,
+        if (lessonId != null) 'lessonId': lessonId.toString(),
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+      });
+
+      final response = await _apiService.dio.post(
+        '/files/upload/education/video',
+        data: formData,
+        onSendProgress: onProgress,
       );
 
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        return responseData['data']['downloadUrl'] as String;
-      } else {
-        throw Exception('Failed to get download URL: ${response.statusCode}');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return FileUploadResponse.fromJson(response.data['data']);
       }
-    } catch (e) {
-      debugPrint('❌ Failed to get download URL: $e');
       return null;
-    }
-  }
-
-  /// Validate image file
-  bool _isValidImageFile(String fileName) {
-    final extension = path
-        .extension(fileName)
-        .toLowerCase()
-        .replaceFirst('.', '');
-    return allowedImageTypes.contains(extension);
-  }
-
-  /// Validate document file
-  bool _isValidDocumentFile(String fileName) {
-    final extension = path
-        .extension(fileName)
-        .toLowerCase()
-        .replaceFirst('.', '');
-    return allowedDocumentTypes.contains(extension);
-  }
-
-  /// Set upload state
-  void _setUploadState(bool isUploading, double progress, String? error) {
-    _isUploading = isUploading;
-    _uploadProgress = progress;
-    _lastError = error;
-    notifyListeners();
-  }
-
-  /// Get auth token
-  Future<String?> _getAuthToken() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('auth_token');
     } catch (e) {
-      debugPrint('❌ Failed to get auth token: $e');
-      return null;
+      debugPrint('Education video upload error: $e');
+      rethrow;
     }
   }
 
-  /// Save uploaded files to local storage
-  Future<void> _saveUploadedFiles() async {
+  /// Upload education document
+  Future<FileUploadResponse?> uploadEducationDocument({
+    required File file,
+    String? userId,
+    int? lessonId,
+    String? title,
+    String? description,
+    Function(int, int)? onProgress,
+  }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final filesJson = _uploadedFiles.map((f) => f.toJson()).toList();
-      await prefs.setString('uploaded_files', json.encode(filesJson));
-    } catch (e) {
-      debugPrint('❌ Failed to save uploaded files: $e');
-    }
-  }
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        if (userId != null) 'userId': userId,
+        if (lessonId != null) 'lessonId': lessonId.toString(),
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+      });
 
-  /// Load uploaded files from local storage
-  Future<void> _loadUploadedFiles() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final filesString = prefs.getString('uploaded_files');
+      final response = await _apiService.dio.post(
+        '/files/upload/education/document',
+        data: formData,
+        onSendProgress: onProgress,
+      );
 
-      if (filesString != null) {
-        final List<dynamic> filesJson = json.decode(filesString);
-        _uploadedFiles =
-            filesJson.map((json) => UploadedFile.fromJson(json)).toList();
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return FileUploadResponse.fromJson(response.data['data']);
       }
-
-      debugPrint('✅ Loaded ${_uploadedFiles.length} uploaded files');
+      return null;
     } catch (e) {
-      debugPrint('❌ Failed to load uploaded files: $e');
+      debugPrint('Education document upload error: $e');
+      rethrow;
     }
   }
 
-  /// Clear all uploaded files
-  Future<void> clearUploadedFiles() async {
+  /// Upload education audio
+  Future<FileUploadResponse?> uploadEducationAudio({
+    required File file,
+    String? userId,
+    int? lessonId,
+    String? title,
+    String? description,
+    Function(int, int)? onProgress,
+  }) async {
     try {
-      _uploadedFiles.clear();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('uploaded_files');
-      notifyListeners();
-      debugPrint('✅ Uploaded files cleared');
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        if (userId != null) 'userId': userId,
+        if (lessonId != null) 'lessonId': lessonId.toString(),
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+      });
+
+      final response = await _apiService.dio.post(
+        '/files/upload/education/audio',
+        data: formData,
+        onSendProgress: onProgress,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return FileUploadResponse.fromJson(response.data['data']);
+      }
+      return null;
     } catch (e) {
-      debugPrint('❌ Failed to clear uploaded files: $e');
+      debugPrint('Education audio upload error: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload education image
+  Future<FileUploadResponse?> uploadEducationImage({
+    required File file,
+    String? userId,
+    int? lessonId,
+    String? title,
+    String? description,
+    Function(int, int)? onProgress,
+  }) async {
+    try {
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        if (userId != null) 'userId': userId,
+        if (lessonId != null) 'lessonId': lessonId.toString(),
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+      });
+
+      final response = await _apiService.dio.post(
+        '/files/upload/education/image',
+        data: formData,
+        onSendProgress: onProgress,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return FileUploadResponse.fromJson(response.data['data']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Education image upload error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get lesson files
+  Future<List<FileUploadResponse>> getLessonFiles(int lessonId) async {
+    try {
+      final response = await _apiService.dio.get(
+        '/files/education/lesson/$lessonId',
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> dataList = response.data['data'];
+        return dataList
+            .map((item) => FileUploadResponse.fromJson(item))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Get lesson files error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get files by type
+  Future<List<FileUploadResponse>> getFilesByType(String fileType) async {
+    try {
+      final response = await _apiService.dio.get(
+        '/files/education/type/$fileType',
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> dataList = response.data['data'];
+        return dataList
+            .map((item) => FileUploadResponse.fromJson(item))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Get files by type error: $e');
+      rethrow;
+    }
+  }
+
+  /// Validate file for education content
+  static bool validateEducationFile(File file, String fileType) {
+    final fileName = file.path.toLowerCase();
+    final fileSize = file.lengthSync();
+
+    // Check file size (max 50MB for videos, 10MB for others)
+    final maxSize = fileType == 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (fileSize > maxSize) {
+      return false;
+    }
+
+    // Check file extensions
+    switch (fileType) {
+      case 'video':
+        return fileName.endsWith('.mp4') ||
+            fileName.endsWith('.avi') ||
+            fileName.endsWith('.mov') ||
+            fileName.endsWith('.wmv') ||
+            fileName.endsWith('.webm');
+      case 'audio':
+        return fileName.endsWith('.mp3') ||
+            fileName.endsWith('.wav') ||
+            fileName.endsWith('.aac') ||
+            fileName.endsWith('.ogg') ||
+            fileName.endsWith('.m4a');
+      case 'image':
+        return fileName.endsWith('.jpg') ||
+            fileName.endsWith('.jpeg') ||
+            fileName.endsWith('.png') ||
+            fileName.endsWith('.gif') ||
+            fileName.endsWith('.webp');
+      case 'document':
+        return fileName.endsWith('.pdf') ||
+            fileName.endsWith('.doc') ||
+            fileName.endsWith('.docx') ||
+            fileName.endsWith('.txt') ||
+            fileName.endsWith('.rtf');
+      default:
+        return true;
+    }
+  }
+
+  /// Get file type from extension
+  static String getFileTypeFromExtension(String fileName) {
+    final extension = fileName.toLowerCase().split('.').last;
+
+    switch (extension) {
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+      case 'wmv':
+      case 'webm':
+        return 'video';
+      case 'mp3':
+      case 'wav':
+      case 'aac':
+      case 'ogg':
+      case 'm4a':
+        return 'audio';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
+        return 'image';
+      case 'pdf':
+      case 'doc':
+      case 'docx':
+      case 'txt':
+      case 'rtf':
+        return 'document';
+      default:
+        return 'general';
+    }
+  }
+
+  /// Format file size
+  static String formatFileSize(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes B';
+    } else if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    } else if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    } else {
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
     }
   }
 }
-
-/// File upload data model
-class FileUploadData {
-  final Uint8List bytes;
-  final String fileName;
-  final FileType fileType;
-  final Map<String, String>? metadata;
-
-  const FileUploadData({
-    required this.bytes,
-    required this.fileName,
-    required this.fileType,
-    this.metadata,
-  });
-}
-
-/// Uploaded file model
-class UploadedFile {
-  final String id;
-  final String fileName;
-  final String fileUrl;
-  final FileType fileType;
-  final DateTime uploadedAt;
-  final int size;
-  final Map<String, String>? metadata;
-
-  const UploadedFile({
-    required this.id,
-    required this.fileName,
-    required this.fileUrl,
-    required this.fileType,
-    required this.uploadedAt,
-    required this.size,
-    this.metadata,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'fileName': fileName,
-      'fileUrl': fileUrl,
-      'fileType': fileType.name,
-      'uploadedAt': uploadedAt.toIso8601String(),
-      'size': size,
-      'metadata': metadata,
-    };
-  }
-
-  factory UploadedFile.fromJson(Map<String, dynamic> json) {
-    return UploadedFile(
-      id: json['id'],
-      fileName: json['fileName'],
-      fileUrl: json['fileUrl'],
-      fileType: FileType.values.firstWhere(
-        (e) => e.name == json['fileType'],
-        orElse: () => FileType.document,
-      ),
-      uploadedAt: DateTime.parse(json['uploadedAt']),
-      size: json['size'],
-      metadata:
-          json['metadata'] != null
-              ? Map<String, String>.from(json['metadata'])
-              : null,
-    );
-  }
-}
-
-/// File types
-enum FileType { image, document, audio, video }

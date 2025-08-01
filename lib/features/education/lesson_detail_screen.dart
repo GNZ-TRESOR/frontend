@@ -1,360 +1,477 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/services/education_service.dart';
-import '../../core/services/auth_service.dart';
-import '../../widgets/voice_button.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:video_player/video_player.dart';
+import 'package:audioplayers/audioplayers.dart';
 
-class LessonDetailScreen extends StatefulWidget {
+import '../../core/models/education_lesson.dart';
+import '../../core/models/education_progress.dart';
+import '../../core/providers/education_provider.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/widgets/loading_overlay.dart';
+import '../../core/widgets/simple_translated_text.dart';
+import '../../core/mixins/tts_screen_mixin.dart';
+
+/// Professional Lesson Detail Screen with media player and progress tracking
+class LessonDetailScreen extends ConsumerStatefulWidget {
   final EducationLesson lesson;
 
   const LessonDetailScreen({super.key, required this.lesson});
 
   @override
-  State<LessonDetailScreen> createState() => _LessonDetailScreenState();
+  ConsumerState<LessonDetailScreen> createState() => _LessonDetailScreenState();
 }
 
-class _LessonDetailScreenState extends State<LessonDetailScreen> {
-  final EducationService _educationService = EducationService();
-  final AuthService _authService = AuthService();
-
-  bool _isPlaying = false;
-  double _currentPosition = 0.0;
-  double _totalDuration = 100.0;
+class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
+    with TTSScreenMixin, TickerProviderStateMixin {
+  VideoPlayerController? _videoController;
+  AudioPlayer? _audioPlayer;
+  bool _isVideoInitialized = false;
+  bool _isAudioPlaying = false;
+  bool _isVideoPlaying = false;
+  Duration _audioDuration = Duration.zero;
+  Duration _audioPosition = Duration.zero;
+  final TextEditingController _notesController = TextEditingController();
   bool _isCompleted = false;
-  bool _isLoading = true;
   EducationProgress? _userProgress;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _totalDuration =
-        widget.lesson.estimatedDuration.toDouble() *
-        60; // Convert minutes to seconds
-    _loadUserProgress();
-  }
+    _tabController = TabController(length: 3, vsync: this);
+    _initializeMedia();
 
-  Future<void> _loadUserProgress() async {
-    try {
-      final currentUser = _authService.currentUser;
-      if (currentUser != null) {
-        final progressList = await _educationService.getUserProgress(
-          currentUser.id,
-        );
-        _userProgress = progressList.firstWhere(
-          (progress) => progress.lessonId == widget.lesson.id,
-          orElse:
-              () => EducationProgress(
-                id: '',
-                userId: currentUser.id,
-                lessonId: widget.lesson.id,
-                progressPercentage: 0.0,
-                isCompleted: false,
-                completedAt: null,
-                timeSpent: 0,
-                quizResults: null,
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-              ),
-        );
-
-        setState(() {
-          _isCompleted = _userProgress?.isCompleted ?? false;
-          _currentPosition =
-              (_userProgress?.progressPercentage ?? 0.0) / 100 * _totalDuration;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  // Helper method to format lesson duration
-  String _formatLessonDuration() {
-    final minutes = widget.lesson.estimatedDuration;
-    if (minutes < 60) {
-      return '$minutes iminota';
-    } else {
-      final hours = minutes ~/ 60;
-      final remainingMinutes = minutes % 60;
-      if (remainingMinutes == 0) {
-        return '$hours ${hours == 1 ? 'isaha' : 'amasaha'}';
-      } else {
-        return '$hours ${hours == 1 ? 'isaha' : 'amasaha'} $remainingMinutes iminota';
-      }
-    }
-  }
-
-  // Helper method to get lesson content in Kinyarwanda or fallback to English
-  String _getLessonContent() {
-    return widget.lesson.contentKinyarwanda.isNotEmpty
-        ? widget.lesson.contentKinyarwanda
-        : widget.lesson.content;
-  }
-
-  // Helper method to format difficulty
-  String _formatDifficulty() {
-    switch (widget.lesson.difficulty.toUpperCase()) {
-      case 'BEGINNER':
-        return 'Byoroshye';
-      case 'INTERMEDIATE':
-        return 'Hagati';
-      case 'ADVANCED':
-        return 'Bigoye';
-      default:
-        return widget.lesson.difficulty;
-    }
-  }
-
-  Future<void> _updateProgress() async {
-    try {
-      final currentUser = _authService.currentUser;
-      if (currentUser != null) {
-        final progressPercentage = (_currentPosition / _totalDuration * 100)
-            .clamp(0.0, 100.0);
-        final timeSpent = _currentPosition.round();
-
-        final updatedProgress = await _educationService.updateLessonProgress(
-          userId: currentUser.id,
-          lessonId: widget.lesson.id,
-          progressPercentage: progressPercentage,
-          timeSpent: timeSpent,
-          isCompleted: _isCompleted,
-        );
-
-        if (updatedProgress != null) {
-          setState(() {
-            _userProgress = updatedProgress;
-          });
-        }
-      }
-    } catch (e) {
-      // Handle error silently for now
-      debugPrint('Error updating progress: $e');
-    }
-  }
-
-  void _togglePlayPause() {
-    setState(() {
-      _isPlaying = !_isPlaying;
+    // Load lesson data after the frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadLessonData();
     });
+  }
 
-    if (_isPlaying) {
-      _simulateAudioProgress();
+  void _loadLessonData() {
+    final user = ref.read(authProvider).user;
+    if (user != null && user.id != null) {
+      // Check if we already have progress data loaded
+      final educationState = ref.read(educationProvider);
+      if (educationState.userProgress.isEmpty &&
+          !educationState.isLoadingProgress) {
+        // Try to load progress data, but don't block the UI if it fails
+        ref.read(educationProvider.notifier).loadUserProgress(user.id!).catchError((
+          error,
+        ) {
+          print('Failed to load progress data: $error');
+          // Continue without progress data - the UI will handle this gracefully
+        });
+      }
     }
   }
 
-  void _simulateAudioProgress() {
-    if (_isPlaying && _currentPosition < _totalDuration) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted && _isPlaying) {
-          setState(() {
-            _currentPosition = (_currentPosition + 1).clamp(
-              0.0,
-              _totalDuration,
-            );
-            if (_currentPosition >= _totalDuration) {
-              _isPlaying = false;
-              _isCompleted = true;
-            }
-          });
-
-          // Update progress every 5 seconds
-          if (_currentPosition % 5 == 0) {
-            _updateProgress();
-          }
-
-          _simulateAudioProgress();
-        }
+  void _initializeMedia() {
+    // Initialize video player if video URL exists
+    if (widget.lesson.videoUrl != null && widget.lesson.videoUrl!.isNotEmpty) {
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(widget.lesson.videoUrl!),
+      );
+      _videoController!.initialize().then((_) {
+        setState(() {
+          _isVideoInitialized = true;
+        });
       });
     }
-  }
 
-  void _handleVoiceCommand(String command) {
-    final lowerCommand = command.toLowerCase();
-    if (lowerCommand.contains('gukina') || lowerCommand.contains('play')) {
-      _togglePlayPause();
-    } else if (lowerCommand.contains('guhagarika') ||
-        lowerCommand.contains('pause')) {
-      setState(() {
-        _isPlaying = false;
+    // Initialize audio player if audio URL exists
+    if (widget.lesson.audioUrl != null && widget.lesson.audioUrl!.isNotEmpty) {
+      _audioPlayer = AudioPlayer();
+      _audioPlayer!.onDurationChanged.listen((duration) {
+        setState(() {
+          _audioDuration = duration;
+        });
       });
-    } else if (lowerCommand.contains('subira') ||
-        lowerCommand.contains('back')) {
-      Navigator.of(context).pop();
+      _audioPlayer!.onPositionChanged.listen((position) {
+        setState(() {
+          _audioPosition = position;
+        });
+      });
+      _audioPlayer!.onPlayerStateChanged.listen((state) {
+        setState(() {
+          _isAudioPlaying = state == PlayerState.playing;
+        });
+      });
     }
   }
 
   @override
+  void dispose() {
+    _videoController?.dispose();
+    _audioPlayer?.dispose();
+    _notesController.dispose();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
+    final educationState = ref.watch(educationProvider);
+    final user = ref.watch(authProvider).user;
 
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppTheme.backgroundColor,
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+    // Get user progress for this lesson
+    _userProgress =
+        educationState.userProgress
+            .where((p) => p.lesson?.id == widget.lesson.id)
+            .firstOrNull;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Custom App Bar
-          _buildAppBar(isTablet),
+    _isCompleted = _userProgress?.isCompleted ?? false;
 
-          // Audio Player
-          SliverToBoxAdapter(child: _buildAudioPlayer(isTablet)),
-
-          // Lesson Content
-          SliverToBoxAdapter(child: _buildLessonContent(isTablet)),
-
-          // Key Points
-          SliverToBoxAdapter(child: _buildKeyPoints(isTablet)),
-
-          // Action Buttons
-          SliverToBoxAdapter(child: _buildActionButtons(isTablet)),
-
-          // Bottom Padding
-          SliverToBoxAdapter(child: SizedBox(height: AppTheme.spacing64)),
+    return addTTSToScaffold(
+      context: context,
+      ref: ref,
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: widget.lesson.title.str(),
+        backgroundColor: AppColors.educationBlue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isCompleted ? Icons.check_circle : Icons.check_circle_outline,
+            ),
+            onPressed: () => _toggleCompletion(),
+            tooltip: _isCompleted ? 'Mark as incomplete' : 'Mark as complete',
+          ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () => _shareLesson(),
+          ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: [
+            Tab(child: 'Content'.str()),
+            Tab(child: 'Notes'.str()),
+            Tab(child: 'Progress'.str()),
+          ],
+        ),
       ),
-      floatingActionButton: VoiceButton(
-        prompt:
-            'Vuga: "Gukina" kugira ngo utangire isomo, "Guhagarika" kugira ngo uhagarike, cyangwa "Subira" kugira ngo usubirire inyuma',
-        onResult: _handleVoiceCommand,
-        tooltip: 'Koresha ijwi gukurikirana isomo',
+      body: LoadingOverlay(
+        isLoading:
+            educationState.isLoadingProgress && educationState.error == null,
+        child:
+            educationState.error != null
+                ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Unable to load progress data',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'You can still view the lesson content',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Show lesson content without progress
+                          setState(() {
+                            _tabController.animateTo(0); // Go to content tab
+                          });
+                        },
+                        child: const Text('View Lesson'),
+                      ),
+                    ],
+                  ),
+                )
+                : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildContentTab(),
+                    _buildNotesTab(),
+                    _buildProgressTab(),
+                  ],
+                ),
       ),
     );
   }
 
-  Widget _buildAppBar(bool isTablet) {
-    return SliverAppBar(
-      expandedHeight: isTablet ? 300 : 250,
-      floating: false,
-      pinned: true,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+  Widget _buildContentTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Lesson Header
+          _buildLessonHeader(),
+          const SizedBox(height: 24),
+
+          // Media Player Section
+          if (widget.lesson.videoUrl != null || widget.lesson.audioUrl != null)
+            _buildMediaSection(),
+
+          // Lesson Content
+          if (widget.lesson.content != null) ...[
+            const SizedBox(height: 24),
+            _buildContentSection(),
+          ],
+
+          // Tags Section
+          if (widget.lesson.tags.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _buildTagsSection(),
+          ],
+
+          // Action Buttons
+          const SizedBox(height: 32),
+          _buildActionButtons(),
+        ],
       ),
-      actions: [
-        Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: IconButton(
-            icon: Icon(
-              _isCompleted
-                  ? Icons.bookmark_rounded
-                  : Icons.bookmark_border_rounded,
-              color: Colors.white,
+    );
+  }
+
+  Widget _buildLessonHeader() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.lesson.title,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            onPressed: () {
-              setState(() {
-                _isCompleted = !_isCompleted;
-              });
-            },
-          ),
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryColor.withValues(alpha: 0.8),
-              ],
-            ),
-          ),
-          child: Stack(
-            children: [
-              // Background Pattern
-              Positioned.fill(
-                child: Container(
+            if (widget.lesson.description != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.lesson.description!,
+                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if (widget.lesson.author != null) ...[
+                  Icon(Icons.person, size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.lesson.author!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                if (widget.lesson.durationMinutes != null) ...[
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.lesson.durationMinutes} min',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.1),
-                        Colors.transparent,
-                      ],
+                    color: AppColors.educationBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _getLevelDisplayName(widget.lesson.level),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.educationBlue,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // Content
-              Positioned(
-                bottom: isTablet ? 40 : 30,
-                left: isTablet ? 32 : 24,
-                right: isTablet ? 32 : 24,
+  Widget _buildMediaSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Media Content',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Video Player
+            if (widget.lesson.videoUrl != null) _buildVideoPlayer(),
+
+            // Audio Player
+            if (widget.lesson.audioUrl != null) _buildAudioPlayer(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoPlayer() {
+    if (!_isVideoInitialized || _videoController == null) {
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Column(
+      children: [
+        Container(
+          height: 200,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: AspectRatio(
+              aspectRatio: _videoController!.value.aspectRatio,
+              child: VideoPlayer(_videoController!),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: Icon(
+                _isVideoPlaying ? Icons.pause : Icons.play_arrow,
+                size: 32,
+              ),
+              onPressed: () {
+                setState(() {
+                  if (_isVideoPlaying) {
+                    _videoController!.pause();
+                  } else {
+                    _videoController!.play();
+                  }
+                  _isVideoPlaying = !_isVideoPlaying;
+                });
+              },
+            ),
+            Expanded(
+              child: VideoProgressIndicator(
+                _videoController!,
+                allowScrubbing: true,
+                colors: VideoProgressColors(
+                  playedColor: AppColors.educationBlue,
+                  bufferedColor: AppColors.educationBlue.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAudioPlayer() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.educationBlue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.headphones, color: AppColors.educationBlue),
+              const SizedBox(width: 8),
+              Text(
+                'Audio Content',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.educationBlue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(
+                  _isAudioPlaying ? Icons.pause : Icons.play_arrow,
+                  size: 32,
+                  color: AppColors.educationBlue,
+                ),
+                onPressed: () async {
+                  if (_isAudioPlaying) {
+                    await _audioPlayer!.pause();
+                  } else {
+                    await _audioPlayer!.play(
+                      UrlSource(widget.lesson.audioUrl!),
+                    );
+                  }
+                },
+              ),
+              Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing12,
-                        vertical: AppTheme.spacing4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusSmall,
-                        ),
-                      ),
-                      child: Text(
-                        _formatDifficulty(),
-                        style: AppTheme.bodySmall.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                    Slider(
+                      value: _audioPosition.inSeconds.toDouble(),
+                      max: _audioDuration.inSeconds.toDouble(),
+                      onChanged: (value) async {
+                        await _audioPlayer!.seek(
+                          Duration(seconds: value.toInt()),
+                        );
+                      },
+                      activeColor: AppColors.educationBlue,
                     ),
-                    SizedBox(height: AppTheme.spacing12),
-                    Text(
-                      widget.lesson.title,
-                      style: AppTheme.headingLarge.copyWith(
-                        color: Colors.white,
-                        fontSize: isTablet ? 32 : 28,
-                      ),
-                    ),
-                    SizedBox(height: AppTheme.spacing8),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          color: Colors.white.withValues(alpha: 0.8),
-                          size: 16,
-                        ),
-                        SizedBox(width: AppTheme.spacing4),
                         Text(
-                          _formatLessonDuration(),
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: Colors.white.withValues(alpha: 0.8),
+                          _formatDuration(_audioPosition),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          _formatDuration(_audioDuration),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -364,229 +481,306 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lesson Content',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.lesson.content!,
+              style: const TextStyle(fontSize: 16, height: 1.6),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildAudioPlayer(bool isTablet) {
-    return Container(
-      margin: EdgeInsets.all(
-        isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
+  Widget _buildTagsSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tags',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  widget.lesson.tags
+                      .map(
+                        (tag) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.educationBlue.withValues(
+                              alpha: 0.1,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.educationBlue.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            tag,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.educationBlue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+            ),
+          ],
+        ),
       ),
-      padding: EdgeInsets.all(
-        isTablet ? AppTheme.spacing24 : AppTheme.spacing20,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-        boxShadow: AppTheme.mediumShadow,
-      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => _toggleCompletion(),
+            icon: Icon(
+              _isCompleted ? Icons.check_circle : Icons.check_circle_outline,
+            ),
+            label: Text(
+              _isCompleted ? 'Mark as Incomplete' : 'Mark as Complete',
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  _isCompleted ? AppColors.success : AppColors.educationBlue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _shareLesson(),
+                icon: const Icon(Icons.share),
+                label: const Text('Share'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _bookmarkLesson(),
+                icon: const Icon(Icons.bookmark_border),
+                label: const Text('Bookmark'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotesTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Progress Bar
-          Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Text(
+            'Personal Notes',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _notesController,
+                        maxLines: null,
+                        expands: true,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Add your personal notes about this lesson...',
+                          border: InputBorder.none,
+                          hintStyle: TextStyle(color: AppColors.textSecondary),
+                        ),
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _saveNotes(),
+                        icon: const Icon(Icons.save),
+                        label: const Text('Save Notes'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.educationBlue,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Learning Progress',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _formatDuration(_currentPosition),
-                    style: AppTheme.bodySmall.copyWith(
-                      color: AppTheme.textTertiary,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        _isCompleted
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color:
+                            _isCompleted
+                                ? AppColors.success
+                                : AppColors.textSecondary,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isCompleted ? 'Completed' : 'In Progress',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    _isCompleted
+                                        ? AppColors.success
+                                        : AppColors.textSecondary,
+                              ),
+                            ),
+                            if (_userProgress?.completedAt != null)
+                              Text(
+                                'Completed on ${_formatDate(_userProgress!.completedAt!)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    _formatDuration(_totalDuration),
-                    style: AppTheme.bodySmall.copyWith(
-                      color: AppTheme.textTertiary,
+                  if (_userProgress?.progressPercentage != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Progress: ${(_userProgress!.progressPercentage * 100).toInt()}%',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: _userProgress!.progressPercentage,
+                      backgroundColor: AppColors.textSecondary.withValues(
+                        alpha: 0.2,
+                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.educationBlue,
+                      ),
+                    ),
+                  ],
+                  if (_userProgress?.timeSpentMinutes != null) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Time spent: ${_userProgress!.timeSpentMinutes} minutes',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-              SizedBox(height: AppTheme.spacing8),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 4,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 8,
-                  ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 16,
-                  ),
-                ),
-                child: Slider(
-                  value: _currentPosition.clamp(0.0, _totalDuration),
-                  max: _totalDuration,
-                  activeColor: AppTheme.primaryColor,
-                  inactiveColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-                  onChanged: (value) {
-                    setState(() {
-                      _currentPosition = value.clamp(0.0, _totalDuration);
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: AppTheme.spacing20),
-
-          // Controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Previous Button
-              Container(
-                width: isTablet ? 60 : 50,
-                height: isTablet ? 60 : 50,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.replay_10_rounded,
-                    color: AppTheme.primaryColor,
-                    size: isTablet ? 28 : 24,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentPosition = (_currentPosition - 10).clamp(
-                        0,
-                        _totalDuration,
-                      );
-                    });
-                  },
-                ),
-              ),
-
-              SizedBox(width: AppTheme.spacing24),
-
-              // Play/Pause Button
-              Container(
-                    width: isTablet ? 80 : 70,
-                    height: isTablet ? 80 : 70,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(isTablet ? 40 : 35),
-                      boxShadow: AppTheme.mediumShadow,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        _isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: isTablet ? 40 : 35,
-                      ),
-                      onPressed: _togglePlayPause,
-                    ),
-                  )
-                  .animate(target: _isPlaying ? 1 : 0)
-                  .scale(
-                    begin: const Offset(1.0, 1.0),
-                    end: const Offset(1.1, 1.1),
-                    duration: 200.ms,
-                  ),
-
-              SizedBox(width: AppTheme.spacing24),
-
-              // Forward Button
-              Container(
-                width: isTablet ? 60 : 50,
-                height: isTablet ? 60 : 50,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.forward_10_rounded,
-                    color: AppTheme.primaryColor,
-                    size: isTablet ? 28 : 24,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentPosition = (_currentPosition + 10).clamp(
-                        0,
-                        _totalDuration,
-                      );
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3, duration: 600.ms);
-  }
-
-  Widget _buildLessonContent(bool isTablet) {
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-      ),
-      padding: EdgeInsets.all(
-        isTablet ? AppTheme.spacing24 : AppTheme.spacing20,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-        boxShadow: AppTheme.softShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Ku iki gisomo',
-            style: AppTheme.headingMedium.copyWith(
-              fontSize: isTablet ? 24 : 20,
-            ),
-          ),
-          SizedBox(height: AppTheme.spacing16),
-          Text(
-            _getLessonContent(),
-            style: AppTheme.bodyLarge.copyWith(height: 1.6),
-          ),
-          SizedBox(height: AppTheme.spacing20),
-          Text(
-            'Mu iki gisomo uziga:',
-            style: AppTheme.headingSmall.copyWith(fontSize: isTablet ? 18 : 16),
-          ),
-          SizedBox(height: AppTheme.spacing12),
-          _buildLearningPoint('Ibanze ku buzima bw\'imyororokere'),
-          _buildLearningPoint('Uburyo bwo kwita ku buzima bwawe'),
-          _buildLearningPoint('Ibyangombwa by\'ingenzi byo kumenya'),
-          _buildLearningPoint('Uko wakora ibyemezo byiza'),
-        ],
-      ),
-    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.3, duration: 600.ms);
-  }
-
-  Widget _buildLearningPoint(String text) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: AppTheme.spacing8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            margin: const EdgeInsets.only(top: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          SizedBox(width: AppTheme.spacing12),
-          Expanded(
-            child: Text(
-              text,
-              style: AppTheme.bodyMedium.copyWith(
-                color: AppTheme.textSecondary,
-              ),
             ),
           ),
         ],
@@ -594,186 +788,163 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
     );
   }
 
-  Widget _buildKeyPoints(bool isTablet) {
-    return Container(
-      margin: EdgeInsets.all(
-        isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Ingingo z\'ingenzi',
-            style: AppTheme.headingMedium.copyWith(
-              fontSize: isTablet ? 24 : 20,
-            ),
-          ),
-          SizedBox(height: AppTheme.spacing16),
-          _buildKeyPointCard(
-            'Menya ubuzima bwawe',
-            'Ni ngombwa kumenya ibijyanye n\'ubuzima bwawe bw\'imyororokere.',
-            Icons.health_and_safety_rounded,
-            AppTheme.primaryColor,
-            isTablet,
-          ),
-          SizedBox(height: AppTheme.spacing12),
-          _buildKeyPointCard(
-            'Gufata ibyemezo byiza',
-            'Koresha amakuru meza kugira ngo ufate ibyemezo byiza ku buzima bwawe.',
-            Icons.psychology_rounded,
-            AppTheme.secondaryColor,
-            isTablet,
-          ),
-          SizedBox(height: AppTheme.spacing12),
-          _buildKeyPointCard(
-            'Gusaba ubufasha',
-            'Ntugire ubwoba bwo gusaba ubufasha ku baganga cyangwa abajyanama.',
-            Icons.support_agent_rounded,
-            AppTheme.accentColor,
-            isTablet,
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, duration: 600.ms);
+  // Helper methods
+  String _getLevelDisplayName(EducationLevel level) {
+    switch (level) {
+      case EducationLevel.beginner:
+        return 'Beginner';
+      case EducationLevel.intermediate:
+        return 'Intermediate';
+      case EducationLevel.advanced:
+        return 'Advanced';
+      case EducationLevel.expert:
+        return 'Expert';
+    }
   }
 
-  Widget _buildKeyPointCard(
-    String title,
-    String description,
-    IconData icon,
-    Color color,
-    bool isTablet,
-  ) {
-    return Container(
-      padding: EdgeInsets.all(
-        isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-        boxShadow: AppTheme.softShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: isTablet ? 50 : 40,
-            height: isTablet ? 50 : 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(isTablet ? 25 : 20),
-            ),
-            child: Icon(icon, color: color, size: isTablet ? 24 : 20),
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  // Action methods
+  void _toggleCompletion() async {
+    final user = ref.read(authProvider).user;
+    if (user == null || user.id == null) return;
+
+    try {
+      if (_isCompleted) {
+        // Mark as incomplete - for now just show message since method doesn't exist
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mark as incomplete feature coming soon'),
+            backgroundColor: AppColors.warning,
           ),
-          SizedBox(width: AppTheme.spacing16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTheme.labelLarge.copyWith(
-                    fontSize: isTablet ? 16 : 14,
-                    color: color,
-                  ),
-                ),
-                SizedBox(height: AppTheme.spacing4),
-                Text(
-                  description,
-                  style: AppTheme.bodySmall.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
+        );
+        return;
+      } else {
+        // Mark as complete
+        await ref
+            .read(educationProvider.notifier)
+            .markLessonComplete(
+              lessonId: widget.lesson.id!,
+              userId: user.id!,
+              timeSpentMinutes: _userProgress?.timeSpentMinutes,
+            );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isCompleted
+                  ? 'Lesson marked as incomplete'
+                  : 'Lesson completed!',
             ),
+            backgroundColor:
+                _isCompleted ? AppColors.warning : AppColors.success,
           ),
-        ],
-      ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating lesson progress: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _saveNotes() async {
+    final user = ref.read(authProvider).user;
+    if (user == null || user.id == null) return;
+
+    try {
+      await ref
+          .read(educationProvider.notifier)
+          .saveLessonNotes(
+            lessonId: widget.lesson.id!,
+            userId: user.id!,
+            notes: _notesController.text,
+          );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notes saved successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving notes: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _shareLesson() {
+    // TODO: Implement lesson sharing
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Sharing feature coming soon')),
     );
   }
 
-  Widget _buildActionButtons(bool isTablet) {
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-      ),
-      child: Column(
-        children: [
-          // Complete Lesson Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () async {
-                setState(() {
-                  _isCompleted = true;
-                  _currentPosition = _totalDuration;
-                });
-
-                await _updateProgress();
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Isomo ryarangiye neza! Komeza gutuma.'),
-                      backgroundColor: AppTheme.successColor,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    _isCompleted
-                        ? AppTheme.successColor
-                        : AppTheme.primaryColor,
-                padding: EdgeInsets.symmetric(
-                  vertical: isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-              child: Text(
-                _isCompleted ? 'Isomo ryarangiye' : 'Rangiza isomo',
-                style: AppTheme.labelLarge.copyWith(color: Colors.white),
-              ),
-            ),
-          ),
-
-          SizedBox(height: AppTheme.spacing12),
-
-          // Next Lesson Button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {
-                // Navigate to next lesson
-                Navigator.of(context).pop();
-              },
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppTheme.primaryColor),
-                padding: EdgeInsets.symmetric(
-                  vertical: isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-              child: Text(
-                'Isomo rikurikira',
-                style: AppTheme.labelLarge.copyWith(
-                  color: AppTheme.primaryColor,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.3, duration: 600.ms);
+  void _bookmarkLesson() {
+    // TODO: Implement lesson bookmarking
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bookmark feature coming soon')),
+    );
   }
 
-  String _formatDuration(double seconds) {
-    final minutes = (seconds / 60).floor();
-    final remainingSeconds = (seconds % 60).floor();
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  // TTS Implementation
+  @override
+  String getTTSContent(BuildContext context, WidgetRef ref) {
+    final buffer = StringBuffer();
+
+    buffer.write('Lesson: ${widget.lesson.title}. ');
+
+    if (widget.lesson.description != null) {
+      buffer.write('Description: ${widget.lesson.description}. ');
+    }
+
+    if (widget.lesson.author != null) {
+      buffer.write('Author: ${widget.lesson.author}. ');
+    }
+
+    if (widget.lesson.durationMinutes != null) {
+      buffer.write('Duration: ${widget.lesson.durationMinutes} minutes. ');
+    }
+
+    buffer.write('Level: ${_getLevelDisplayName(widget.lesson.level)}. ');
+
+    if (_isCompleted) {
+      buffer.write('This lesson is completed. ');
+    } else {
+      buffer.write('This lesson is in progress. ');
+    }
+
+    if (widget.lesson.content != null) {
+      buffer.write('Content: ${widget.lesson.content}');
+    }
+
+    return buffer.toString();
   }
+
+  @override
+  String getScreenName() => 'Lesson Detail';
 }

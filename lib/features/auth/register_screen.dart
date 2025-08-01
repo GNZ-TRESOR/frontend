@@ -1,732 +1,185 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/constants/app_constants.dart';
-import '../../core/services/auth_service.dart';
-import '../../widgets/voice_button.dart';
-import '../main/main_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/providers/auth_provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/utils/app_constants.dart';
+import '../../core/widgets/loading_overlay.dart';
 import 'login_screen.dart';
 
-class RegisterScreen extends StatefulWidget {
+/// Professional registration screen for Family Planning Platform
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _emergencyContactController = TextEditingController();
-  final _facilityIdController = TextEditingController();
-  final AuthService _authService = AuthService();
 
-  bool _isPasswordVisible = false;
-  bool _isConfirmPasswordVisible = false;
-  bool _isLoading = false;
-  bool _agreeToTerms = false;
-  String _selectedRole = AppConstants.roleClient;
-  String _selectedGender = 'PREFER_NOT_TO_SAY';
-  String _selectedLanguage = 'rw';
-  String _selectedDistrict = '';
-  String _selectedSector = '';
-  String _selectedCell = '';
-  String _selectedVillage = '';
+  // Additional fields for complete user profile
+  final _districtController = TextEditingController();
+  final _sectorController = TextEditingController();
+  final _cellController = TextEditingController();
+  final _villageController = TextEditingController();
+  final _emergencyContactController = TextEditingController();
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _acceptTerms = false;
+  String _selectedGender = 'FEMALE';
+  // Role will be determined by backend based on email domain
+  String _selectedLanguage = 'rw'; // Default language
   DateTime? _selectedDateOfBirth;
 
   @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+      ),
+    );
+
+    _animationController.forward();
+  }
+
+  @override
   void dispose() {
-    _nameController.dispose();
+    _animationController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _districtController.dispose();
+    _sectorController.dispose();
+    _cellController.dispose();
+    _villageController.dispose();
     _emergencyContactController.dispose();
-    _facilityIdController.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
+  Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_agreeToTerms) {
+
+    if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ugomba kwemera amabwiriza n\'amategeko')),
+        const SnackBar(
+          content: Text('Please accept the terms and conditions'),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    // Backend will automatically determine role based on email domain:
+    // - .rw emails -> ADMIN
+    // - Other emails -> CLIENT
+    // - Health workers are created by admins only
+    final email = _emailController.text.trim().toLowerCase();
 
-    try {
-      final nameParts = _nameController.text.trim().split(' ');
-      final firstName = nameParts.isNotEmpty ? nameParts.first : '';
-      final lastName =
-          nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+    final userData = {
+      'name':
+          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+      'email': email,
+      'phone': _phoneController.text.trim(),
+      'password': _passwordController.text,
+      // Role will be determined by backend based on email domain
+      'gender': _selectedGender,
+      'dateOfBirth':
+          _selectedDateOfBirth?.toIso8601String().split(
+            'T',
+          )[0], // Send as date only
+      'district':
+          _districtController.text.trim().isNotEmpty
+              ? _districtController.text.trim()
+              : null,
+      'sector':
+          _sectorController.text.trim().isNotEmpty
+              ? _sectorController.text.trim()
+              : null,
+      'cell':
+          _cellController.text.trim().isNotEmpty
+              ? _cellController.text.trim()
+              : null,
+      'village':
+          _villageController.text.trim().isNotEmpty
+              ? _villageController.text.trim()
+              : null,
+      'emergencyContact':
+          _emergencyContactController.text.trim().isNotEmpty
+              ? _emergencyContactController.text.trim()
+              : null,
+      'preferredLanguage': _selectedLanguage,
+    };
 
-      final result = await _authService.register(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        firstName: firstName,
-        lastName: lastName,
-        phoneNumber: _phoneController.text.trim(),
-        role: _selectedRole,
-        gender: _selectedGender,
-        dateOfBirth: _selectedDateOfBirth,
-        district: _selectedDistrict,
-        sector: _selectedSector,
-        cell: _selectedCell,
-        village: _selectedVillage,
-        emergencyContact: _emergencyContactController.text.trim(),
-        preferredLanguage: _selectedLanguage,
-        facilityId:
-            _selectedRole == AppConstants.roleHealthWorker
-                ? _facilityIdController.text.trim()
-                : null,
+    final success = await ref.read(authProvider.notifier).register(userData);
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration successful! Please login to continue.'),
+          backgroundColor: AppColors.success,
+        ),
       );
-
-      if (mounted) {
-        if (result.isSuccess) {
-          // Successful registration - navigate to main screen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Konti yawe yarakozwe neza!'),
-              backgroundColor: AppTheme.successColor,
-            ),
-          );
-
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              pageBuilder:
-                  (context, animation, secondaryAnimation) =>
-                      const MainScreen(),
-              transitionsBuilder: (
-                context,
-                animation,
-                secondaryAnimation,
-                child,
-              ) {
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                );
-              },
-              transitionDuration: const Duration(milliseconds: 300),
-            ),
-          );
-        } else {
-          // Failed registration
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.error ?? 'Habaye ikosa mu gukora konti'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Registration error details: $e');
-      if (mounted) {
-        String errorMessage = 'Habaye ikosa mu gukora konti';
-
-        // Handle specific error cases
-        String errorString = e.toString().toLowerCase();
-        if (errorString.contains('email') &&
-            (errorString.contains('exist') ||
-                errorString.contains('already') ||
-                errorString.contains('duplicate'))) {
-          errorMessage =
-              'Imeyili yawe isanzwe ikoreshwa. Koresha indi imeyili cyangwa winjire mu konti yawe.';
-        } else if (errorString.contains('phone') &&
-            (errorString.contains('exist') ||
-                errorString.contains('already') ||
-                errorString.contains('duplicate'))) {
-          errorMessage =
-              'Nimero ya telefone isanzwe ikoreshwa. Koresha indi nimero.';
-        } else if (errorString.contains('validation') ||
-            errorString.contains('bad request')) {
-          errorMessage =
-              'Amakuru winjije ntabwo ari yo. Reba neza amakuru wose.';
-        } else if (errorString.contains('network') ||
-            errorString.contains('connection')) {
-          errorMessage = 'Nta mukoro wa interineti. Gerageza nyuma.';
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: AppTheme.errorColor,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
     }
-  }
-
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Emeza ijambo ry\'ibanga';
-    }
-    if (value != _passwordController.text) {
-      return 'Amagambo y\'ibanga ntabwo ahura';
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
-
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text('Iyandikishe', style: AppTheme.headingSmall),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(
-            isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-          ),
-          child: Column(
-            children: [
-              // Header
-              _buildHeader(isTablet),
-
-              SizedBox(height: AppTheme.spacing32),
-
-              // Registration Form
-              _buildRegistrationForm(isTablet),
-
-              SizedBox(height: AppTheme.spacing24),
-
-              // Login Link
-              _buildLoginLink(isTablet),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool isTablet) {
-    return Column(
-      children: [
-        Text(
-          'Kora konti nshya',
-          style: AppTheme.headingLarge.copyWith(fontSize: isTablet ? 32 : 28),
-        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3, duration: 600.ms),
-
-        SizedBox(height: AppTheme.spacing8),
-
-        Text(
-          'Uzuza amakuru akurikira kugira ngo ukore konti yawe',
-          style: AppTheme.bodyLarge.copyWith(color: AppTheme.textSecondary),
-          textAlign: TextAlign.center,
-        ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.3, duration: 600.ms),
-      ],
-    );
-  }
-
-  Widget _buildRegistrationForm(bool isTablet) {
-    return Container(
-      padding: EdgeInsets.all(
-        isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-        boxShadow: AppTheme.mediumShadow,
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            // Name Field
-            TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Amazina yawe',
-                    hintText: 'Shyiramo amazina yawe yose',
-                    prefixIcon: Icon(Icons.person_outlined),
-                  ),
-                  validator: AppValidation.validateName,
-                )
-                .animate()
-                .fadeIn(delay: 600.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Email Field
-            TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Imeyili',
-                    hintText: 'Shyiramo imeyili yawe',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: AppValidation.validateEmail,
-                )
-                .animate()
-                .fadeIn(delay: 700.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Phone Field
-            TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Nimero ya telefone',
-                    hintText: 'Shyiramo nimero ya telefone',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                  validator: AppValidation.validatePhone,
-                )
-                .animate()
-                .fadeIn(delay: 800.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Role Selection
-            DropdownButtonFormField<String>(
-                  value: _selectedRole,
-                  decoration: const InputDecoration(
-                    labelText: 'Uruhare rwawe',
-                    prefixIcon: Icon(Icons.work_outlined),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: AppConstants.roleClient,
-                      child: Text('Umukiliya'),
-                    ),
-                    DropdownMenuItem(
-                      value: AppConstants.roleHealthWorker,
-                      child: Text('Umukozi w\'ubuzima'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedRole = value!;
-                    });
-                  },
-                )
-                .animate()
-                .fadeIn(delay: 900.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Gender Selection
-            DropdownButtonFormField<String>(
-                  value: _selectedGender,
-                  decoration: const InputDecoration(
-                    labelText: 'Igitsina',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'MALE', child: Text('Gabo')),
-                    DropdownMenuItem(value: 'FEMALE', child: Text('Gore')),
-                    DropdownMenuItem(value: 'OTHER', child: Text('Ikindi')),
-                    DropdownMenuItem(
-                      value: 'PREFER_NOT_TO_SAY',
-                      child: Text('Sinshaka kubivuga'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedGender = value!;
-                    });
-                  },
-                )
-                .animate()
-                .fadeIn(delay: 950.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Date of Birth
-            TextFormField(
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Itariki y\'amavuko',
-                hintText: 'Hitamo itariki y\'amavuko yawe',
-                prefixIcon: const Icon(Icons.calendar_today_outlined),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.calendar_month),
-                  onPressed: () => _selectDateOfBirth(),
-                ),
-              ),
-              controller: TextEditingController(
-                text:
-                    _selectedDateOfBirth != null
-                        ? '${_selectedDateOfBirth!.day}/${_selectedDateOfBirth!.month}/${_selectedDateOfBirth!.year}'
-                        : '',
-              ),
-              validator: (value) {
-                if (_selectedDateOfBirth == null) {
-                  return 'Hitamo itariki y\'amavuko yawe';
-                }
-                return null;
-              },
-            ).animate().fadeIn(delay: 975.ms).slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // District Selection
-            DropdownButtonFormField<String>(
-                  value: _selectedDistrict.isEmpty ? null : _selectedDistrict,
-                  decoration: const InputDecoration(
-                    labelText: 'Akarere',
-                    prefixIcon: Icon(Icons.location_city_outlined),
-                  ),
-                  items: _getDistrictItems(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedDistrict = value ?? '';
-                      _selectedSector = '';
-                      _selectedCell = '';
-                      _selectedVillage = '';
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Hitamo akarere kawe';
-                    }
-                    return null;
-                  },
-                )
-                .animate()
-                .fadeIn(delay: 1000.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Sector Selection
-            DropdownButtonFormField<String>(
-                  value: _selectedSector.isEmpty ? null : _selectedSector,
-                  decoration: const InputDecoration(
-                    labelText: 'Umurenge',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                  items: _getSectorItems(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedSector = value ?? '';
-                      _selectedCell = '';
-                      _selectedVillage = '';
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Hitamo umurenge wawe';
-                    }
-                    return null;
-                  },
-                )
-                .animate()
-                .fadeIn(delay: 1025.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Cell Field
-            TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Akagari',
-                    hintText: 'Shyiramo akagari kawe',
-                    prefixIcon: Icon(Icons.home_outlined),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedCell = value;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Shyiramo akagari kawe';
-                    }
-                    return null;
-                  },
-                )
-                .animate()
-                .fadeIn(delay: 1050.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Village Field
-            TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Umudugudu',
-                    hintText: 'Shyiramo umudugudu wawe',
-                    prefixIcon: Icon(Icons.house_outlined),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedVillage = value;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Shyiramo umudugudu wawe';
-                    }
-                    return null;
-                  },
-                )
-                .animate()
-                .fadeIn(delay: 1075.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Emergency Contact
-            TextFormField(
-                  controller: _emergencyContactController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Nimero ya telefone y\'umuturanyi',
-                    hintText: 'Shyiramo nimero ya telefone y\'umuturanyi',
-                    prefixIcon: Icon(Icons.emergency_outlined),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Shyiramo nimero ya telefone y\'umuturanyi';
-                    }
-                    return AppValidation.validatePhone(value);
-                  },
-                )
-                .animate()
-                .fadeIn(delay: 1100.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Facility ID (only for health workers)
-            if (_selectedRole == AppConstants.roleHealthWorker) ...[
-              TextFormField(
-                    controller: _facilityIdController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nimero y\'ikigo cy\'ubuzima',
-                      hintText: 'Shyiramo nimero y\'ikigo cy\'ubuzima',
-                      prefixIcon: Icon(Icons.local_hospital_outlined),
-                    ),
-                    validator: (value) {
-                      if (_selectedRole == AppConstants.roleHealthWorker &&
-                          (value == null || value.trim().isEmpty)) {
-                        return 'Shyiramo nimero y\'ikigo cy\'ubuzima';
-                      }
-                      return null;
-                    },
-                  )
-                  .animate()
-                  .fadeIn(delay: 1125.ms)
-                  .slideX(begin: -0.3, duration: 600.ms),
-
-              SizedBox(height: AppTheme.spacing20),
-            ],
-
-            // Password Field
-            TextFormField(
-                  controller: _passwordController,
-                  obscureText: !_isPasswordVisible,
-                  decoration: InputDecoration(
-                    labelText: 'Ijambo ry\'ibanga',
-                    hintText: 'Shyiramo ijambo ry\'ibanga',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordVisible
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isPasswordVisible = !_isPasswordVisible;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: AppValidation.validatePassword,
-                )
-                .animate()
-                .fadeIn(delay: 1000.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Confirm Password Field
-            TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: !_isConfirmPasswordVisible,
-                  decoration: InputDecoration(
-                    labelText: 'Emeza ijambo ry\'ibanga',
-                    hintText: 'Ongera ushyire ijambo ry\'ibanga',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isConfirmPasswordVisible
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isConfirmPasswordVisible =
-                              !_isConfirmPasswordVisible;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: _validateConfirmPassword,
-                )
-                .animate()
-                .fadeIn(delay: 1100.ms)
-                .slideX(begin: -0.3, duration: 600.ms),
-
-            SizedBox(height: AppTheme.spacing20),
-
-            // Terms and Conditions
-            Row(
-              children: [
-                Checkbox(
-                  value: _agreeToTerms,
-                  onChanged: (value) {
-                    setState(() {
-                      _agreeToTerms = value ?? false;
-                    });
-                  },
-                  activeColor: AppTheme.primaryColor,
-                ),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: AppTheme.bodySmall,
-                      children: [
-                        const TextSpan(text: 'Ndemeye '),
-                        TextSpan(
-                          text: 'amabwiriza n\'amategeko',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.primaryColor,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                        const TextSpan(text: ' n\''),
-                        TextSpan(
-                          text: 'politiki y\'ubwoba',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.primaryColor,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ).animate().fadeIn(delay: 1200.ms),
-
-            SizedBox(height: AppTheme.spacing24),
-
-            // Register Button
-            SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    style: AppTheme.primaryButtonStyle.copyWith(
-                      padding: WidgetStateProperty.all(
-                        EdgeInsets.symmetric(
-                          vertical:
-                              isTablet
-                                  ? AppTheme.spacing20
-                                  : AppTheme.spacing16,
-                        ),
-                      ),
-                    ),
-                    child:
-                        _isLoading
-                            ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                            : Text(
-                              AppStrings.register,
-                              style: AppTheme.labelLarge.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                  ),
-                )
-                .animate()
-                .fadeIn(delay: 1300.ms)
-                .scale(begin: const Offset(0.8, 0.8), duration: 600.ms),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, duration: 800.ms);
-  }
-
-  Widget _buildLoginLink(bool isTablet) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text('Usanzwe ufite konti? ', style: AppTheme.bodyMedium),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            AppStrings.login,
-            style: AppTheme.bodyMedium.copyWith(
-              color: AppTheme.primaryColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    ).animate().fadeIn(delay: 1500.ms);
   }
 
   Future<void> _selectDateOfBirth() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate:
-          _selectedDateOfBirth ??
-          DateTime.now().subtract(const Duration(days: 365 * 18)),
+      initialDate: DateTime.now().subtract(
+        const Duration(days: 6570),
+      ), // 18 years ago
       firstDate: DateTime(1900),
-      lastDate: DateTime.now().subtract(
-        const Duration(days: 365 * 13),
-      ), // Minimum 13 years old
-      helpText: 'Hitamo itariki y\'amavuko yawe',
-      cancelText: 'Kuraguza',
-      confirmText: 'Emeza',
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppColors.primary),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null && picked != _selectedDateOfBirth) {
@@ -736,67 +189,614 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  List<DropdownMenuItem<String>> _getDistrictItems() {
-    // Rwanda districts
-    final districts = [
-      'Kigali',
-      'Nyarugenge',
-      'Gasabo',
-      'Kicukiro',
-      'Nyanza',
-      'Gisagara',
-      'Nyaruguru',
-      'Huye',
-      'Nyamagabe',
-      'Ruhango',
-      'Muhanga',
-      'Kamonyi',
-      'Karongi',
-      'Rutsiro',
-      'Rubavu',
-      'Nyabihu',
-      'Ngororero',
-      'Rusizi',
-      'Nyamasheke',
-      'Rulindo',
-      'Gakenke',
-      'Musanze',
-      'Burera',
-      'Gicumbi',
-      'Rwamagana',
-      'Nyagatare',
-      'Gatsibo',
-      'Kayonza',
-      'Kirehe',
-      'Ngoma',
-      'Bugesera',
-    ];
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
 
-    return districts.map((district) {
-      return DropdownMenuItem<String>(value: district, child: Text(district));
-    }).toList();
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: LoadingOverlay(
+        isLoading: authState.isLoading,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 40),
+                        _buildRegistrationForm(),
+                        const SizedBox(height: 24),
+                        _buildTermsAndConditions(),
+                        const SizedBox(height: 24),
+                        _buildRegisterButton(),
+                        const SizedBox(height: 24),
+                        _buildLoginSection(),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  List<DropdownMenuItem<String>> _getSectorItems() {
-    if (_selectedDistrict.isEmpty) {
-      return [];
-    }
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        // Logo
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.favorite, size: 40, color: Colors.white),
+        ),
 
-    // Sample sectors for each district (you can expand this)
-    final Map<String, List<String>> districtSectors = {
-      'Kigali': ['Nyarugenge', 'Nyamirambo', 'Kimisagara', 'Gitega'],
-      'Gasabo': ['Remera', 'Kacyiru', 'Kimironko', 'Gisozi'],
-      'Kicukiro': ['Niboye', 'Kicukiro', 'Gahanga', 'Kagarama'],
-      'Nyarugenge': ['Nyarugenge', 'Nyamirambo', 'Kimisagara', 'Gitega'],
-      // Add more districts and their sectors as needed
-    };
+        const SizedBox(height: 24),
 
-    final sectors =
-        districtSectors[_selectedDistrict] ??
-        ['Umurenge 1', 'Umurenge 2', 'Umurenge 3'];
+        // Welcome text
+        Text(
+          'Create Account',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
 
-    return sectors.map((sector) {
-      return DropdownMenuItem<String>(value: sector, child: Text(sector));
-    }).toList();
+        const SizedBox(height: 8),
+
+        Text(
+          'Join Ubuzima to start your health journey',
+          style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRegistrationForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          // First Name and Last Name
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _firstNameController,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    labelText: 'First Name',
+                    hintText: 'Enter first name',
+                    prefixIcon: Icon(
+                      Icons.person_outlined,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: _lastNameController,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    labelText: 'Last Name',
+                    hintText: 'Enter last name',
+                    prefixIcon: Icon(
+                      Icons.person_outlined,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Email
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: 'Email Address',
+              hintText: 'Enter your email',
+              prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your email';
+              }
+              if (!AppConstants.isValidEmail(value)) {
+                return 'Please enter a valid email';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Phone Number
+          TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: 'Phone Number',
+              hintText: 'Enter your phone number',
+              prefixIcon: Icon(Icons.phone_outlined, color: AppColors.primary),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your phone number';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Gender and Date of Birth
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedGender,
+                  decoration: InputDecoration(
+                    labelText: 'Gender',
+                    prefixIcon: Icon(
+                      Icons.wc_outlined,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'FEMALE', child: Text('Female')),
+                    DropdownMenuItem(value: 'MALE', child: Text('Male')),
+                    DropdownMenuItem(value: 'OTHER', child: Text('Other')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedGender = value!;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  readOnly: true,
+                  onTap: _selectDateOfBirth,
+                  decoration: InputDecoration(
+                    labelText: 'Date of Birth',
+                    hintText: 'Select date',
+                    prefixIcon: Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  controller: TextEditingController(
+                    text:
+                        _selectedDateOfBirth != null
+                            ? '${_selectedDateOfBirth!.day}/${_selectedDateOfBirth!.month}/${_selectedDateOfBirth!.year}'
+                            : '',
+                  ),
+                  validator: (value) {
+                    if (_selectedDateOfBirth == null) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Password
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              hintText: 'Enter your password',
+              prefixIcon: Icon(Icons.lock_outlined, color: AppColors.primary),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: AppColors.textSecondary,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your password';
+              }
+              if (value.length < 8) {
+                return 'Password must be at least 8 characters';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Confirm Password
+          TextFormField(
+            controller: _confirmPasswordController,
+            obscureText: _obscureConfirmPassword,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _handleRegister(),
+            decoration: InputDecoration(
+              labelText: 'Confirm Password',
+              hintText: 'Confirm your password',
+              prefixIcon: Icon(Icons.lock_outlined, color: AppColors.primary),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirmPassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: AppColors.textSecondary,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                  });
+                },
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please confirm your password';
+              }
+              if (value != _passwordController.text) {
+                return 'Passwords do not match';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Account Type Information (Read-only)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Account type will be automatically determined based on your email domain',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Preferred Language
+          DropdownButtonFormField<String>(
+            value: _selectedLanguage,
+            decoration: InputDecoration(
+              labelText: 'Preferred Language',
+              hintText: 'Select language',
+              prefixIcon: Icon(
+                Icons.language_outlined,
+                color: AppColors.primary,
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'rw', child: Text('Kinyarwanda')),
+              DropdownMenuItem(value: 'en', child: Text('English')),
+              DropdownMenuItem(value: 'fr', child: Text('French')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedLanguage = value!;
+              });
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Location Information Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Location Information (Optional)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // District and Sector
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _districtController,
+                        textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'District',
+                          hintText: 'e.g., Kigali',
+                          prefixIcon: Icon(
+                            Icons.location_city_outlined,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _sectorController,
+                        textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Sector',
+                          hintText: 'e.g., Kicukiro',
+                          prefixIcon: Icon(
+                            Icons.location_on_outlined,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Cell and Village
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _cellController,
+                        textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Cell',
+                          hintText: 'e.g., Gahanga',
+                          prefixIcon: Icon(
+                            Icons.place_outlined,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _villageController,
+                        textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Village',
+                          hintText: 'e.g., Gahanga',
+                          prefixIcon: Icon(
+                            Icons.home_outlined,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Emergency Contact
+          TextFormField(
+            controller: _emergencyContactController,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: 'Emergency Contact (Optional)',
+              hintText: 'Enter emergency contact number',
+              prefixIcon: Icon(
+                Icons.emergency_outlined,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTermsAndConditions() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: _acceptTerms,
+          onChanged: (value) {
+            setState(() {
+              _acceptTerms = value ?? false;
+            });
+          },
+          activeColor: AppColors.primary,
+        ),
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _acceptTerms = !_acceptTerms;
+              });
+            },
+            child: Text.rich(
+              TextSpan(
+                text: 'I agree to the ',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                children: [
+                  TextSpan(
+                    text: 'Terms of Service',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const TextSpan(text: ' and '),
+                  TextSpan(
+                    text: 'Privacy Policy',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRegisterButton() {
+    final authState = ref.watch(authProvider);
+
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: authState.isLoading ? null : _handleRegister,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 4,
+        ),
+        child:
+            authState.isLoading
+                ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                : const Text(
+                  'Create Account',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+      ),
+    );
+  }
+
+  Widget _buildLoginSection() {
+    return Column(
+      children: [
+        Text(
+          'Already have an account?',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+            );
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: const Text(
+            'Sign In',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
   }
 }

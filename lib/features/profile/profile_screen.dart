@@ -1,455 +1,275 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/constants/app_constants.dart';
-import '../../widgets/voice_button.dart';
-import '../settings/settings_screen.dart';
-import '../help/help_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ProfileScreen extends StatefulWidget {
+import '../../core/providers/auth_provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/mixins/tts_screen_mixin.dart';
+import '../auth/login_screen.dart';
+import '../settings/settings_screen.dart';
+import '../notifications/notifications_screen.dart';
+import '../feedback/feedback_screen.dart';
+
+/// Professional Profile Screen
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  final String _userName = 'Mukamana Marie';
-  final String _userRole = 'Umunyangire';
-  final String _userLocation = 'Kigali, Rwanda';
-
-  void _handleVoiceCommand(String command) {
-    final lowerCommand = command.toLowerCase();
-    if (lowerCommand.contains('guhindura') || lowerCommand.contains('edit')) {
-      _showEditProfileDialog();
-    } else if (lowerCommand.contains('igenamiterere') ||
-        lowerCommand.contains('settings')) {
-      _navigateToSettings();
-    } else if (lowerCommand.contains('gusohoka') ||
-        lowerCommand.contains('logout')) {
-      _showLogoutDialog();
-    }
-  }
-
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
+    with TTSScreenMixin {
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
-
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Custom App Bar with Profile Header
-          _buildProfileHeader(isTablet),
-
-          // Profile Stats
-          SliverToBoxAdapter(child: _buildProfileStats(isTablet)),
-
-          // Menu Options
-          SliverToBoxAdapter(child: _buildMenuOptions(isTablet)),
-
-          // Settings Section
-          SliverToBoxAdapter(child: _buildSettingsSection(isTablet)),
-
-          // Bottom Padding
-          SliverToBoxAdapter(child: SizedBox(height: AppTheme.spacing64)),
-        ],
+    return addTTSToScaffold(
+      context: context,
+      ref: ref,
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
       ),
-      floatingActionButton: VoiceButton(
-        prompt:
-            'Vuga: "Guhindura" kugira ngo uhindure umwirondoro, "Igenamiterere" kugira ngo ugere ku genamiterere',
-        onResult: _handleVoiceCommand,
-        tooltip: 'Koresha ijwi gukoresha umwirondoro',
-      ),
-    );
-  }
+      body: Consumer(
+        builder: (context, ref, child) {
+          final user = ref.watch(currentUserProvider);
 
-  Widget _buildProfileHeader(bool isTablet) {
-    return SliverAppBar(
-      expandedHeight: isTablet ? 300 : 250,
-      floating: false,
-      pinned: true,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryColor.withValues(alpha: 0.8),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildProfileHeader(user),
+                const SizedBox(height: 24),
+                _buildProfileOptions(),
+                const SizedBox(height: 24),
+                _buildLogoutButton(),
               ],
             ),
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(32),
-              bottomRight: Radius.circular(32),
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.all(
-                isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Profile Avatar
-                  Container(
-                    width: isTablet ? 120 : 100,
-                    height: isTablet ? 120 : 100,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.secondaryGradient,
-                      borderRadius: BorderRadius.circular(isTablet ? 60 : 50),
-                      border: Border.all(color: Colors.white, width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: isTablet ? 60 : 50,
-                    ),
-                  ),
-
-                  SizedBox(height: AppTheme.spacing16),
-
-                  // User Info
-                  Text(
-                    _userName,
-                    style: AppTheme.headingLarge.copyWith(
-                      color: Colors.white,
-                      fontSize: isTablet ? 28 : 24,
-                    ),
-                  ),
-                  SizedBox(height: AppTheme.spacing4),
-                  Text(
-                    _userRole,
-                    style: AppTheme.bodyLarge.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                  SizedBox(height: AppTheme.spacing4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.location_on_rounded,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        size: 16,
-                      ),
-                      SizedBox(width: AppTheme.spacing4),
-                      Text(
-                        _userLocation,
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildProfileStats(bool isTablet) {
+  Widget _buildProfileHeader(user) {
     return Container(
-      margin: EdgeInsets.all(
-        isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-      ),
-      padding: EdgeInsets.all(
-        isTablet ? AppTheme.spacing24 : AppTheme.spacing20,
-      ),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-        boxShadow: AppTheme.mediumShadow,
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildStatItem(
-              'Amasomo yarangiye',
-              '12',
-              Icons.school_rounded,
-              AppTheme.primaryColor,
-              isTablet,
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: AppColors.primary,
+            child: Text(
+              user?.initials ?? 'U',
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
-          Container(
-            width: 1,
-            height: isTablet ? 60 : 50,
-            color: AppTheme.primaryColor.withValues(alpha: 0.2),
-          ),
-          Expanded(
-            child: _buildStatItem(
-              'Iminsi ikurikirana',
-              '45',
-              Icons.calendar_today_rounded,
-              AppTheme.secondaryColor,
-              isTablet,
+          const SizedBox(height: 16),
+          Text(
+            user?.fullName ?? 'User Name',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
           ),
-          Container(
-            width: 1,
-            height: isTablet ? 60 : 50,
-            color: AppTheme.primaryColor.withValues(alpha: 0.2),
+          const SizedBox(height: 4),
+          Text(
+            user?.email ?? 'user@example.com',
+            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
           ),
-          Expanded(
-            child: _buildStatItem(
-              'Intego zagezweho',
-              '8',
-              Icons.emoji_events_rounded,
-              AppTheme.accentColor,
-              isTablet,
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              user?.roleDisplayName ?? 'Client',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
+              ),
             ),
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3, duration: 600.ms);
-  }
-
-  Widget _buildStatItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-    bool isTablet,
-  ) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: isTablet ? 28 : 24),
-        SizedBox(height: AppTheme.spacing8),
-        Text(
-          value,
-          style: AppTheme.headingMedium.copyWith(
-            color: color,
-            fontSize: isTablet ? 24 : 20,
-          ),
-        ),
-        SizedBox(height: AppTheme.spacing4),
-        Text(
-          label,
-          style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary),
-          textAlign: TextAlign.center,
-        ),
-      ],
     );
   }
 
-  Widget _buildMenuOptions(bool isTablet) {
-    final menuItems = [
-      MenuOption(
-        title: 'Guhindura umwirondoro',
-        subtitle: 'Hindura amakuru yawe',
-        icon: Icons.edit_rounded,
-        color: AppTheme.primaryColor,
-        onTap: _showEditProfileDialog,
-      ),
-      MenuOption(
-        title: 'Amateka y\'ubuzima',
-        subtitle: 'Reba amateka yawe y\'ubuzima',
-        icon: Icons.history_rounded,
-        color: AppTheme.secondaryColor,
+  Widget _buildProfileOptions() {
+    final options = [
+      ProfileOption(
+        title: 'Edit Profile',
+        subtitle: 'Update your personal information',
+        icon: Icons.edit,
         onTap: () {
-          // Navigate to health history
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Edit profile feature coming soon!')),
+          );
         },
       ),
-      MenuOption(
-        title: 'Igenamiterere',
-        subtitle: 'Hindura igenamiterere ry\'app',
-        icon: Icons.settings_rounded,
-        color: AppTheme.accentColor,
-        onTap: _navigateToSettings,
+      ProfileOption(
+        title: 'Settings',
+        subtitle: 'Manage app preferences and privacy',
+        icon: Icons.settings,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SettingsScreen()),
+          );
+        },
       ),
-      MenuOption(
-        title: 'Ubufasha',
-        subtitle: 'Saba ubufasha cyangwa ubwiyunge',
-        icon: Icons.help_rounded,
-        color: AppTheme.warningColor,
-        onTap: _navigateToHelp,
+      ProfileOption(
+        title: 'Notifications',
+        subtitle: 'View and manage notifications',
+        icon: Icons.notifications,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotificationsScreen(),
+            ),
+          );
+        },
+      ),
+      ProfileOption(
+        title: 'Send Feedback',
+        subtitle: 'Help us improve the app',
+        icon: Icons.feedback,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const FeedbackScreen()),
+          );
+        },
+      ),
+      ProfileOption(
+        title: 'Help & Support',
+        subtitle: 'Get help and contact support',
+        icon: Icons.help,
+        onTap: () {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Feature coming soon!')));
+        },
+      ),
+      ProfileOption(
+        title: 'About',
+        subtitle: 'App version and information',
+        icon: Icons.info,
+        onTap: () {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Feature coming soon!')));
+        },
       ),
     ];
 
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Umwirondoro',
-            style: AppTheme.headingMedium.copyWith(
-              fontSize: isTablet ? 24 : 20,
-            ),
-          ),
-          SizedBox(height: AppTheme.spacing16),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: menuItems.length,
-            itemBuilder: (context, index) {
-              final item = menuItems[index];
-              return _buildMenuCard(item, isTablet, index);
-            },
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.3, duration: 600.ms);
+    return Column(
+      children:
+          options.map((option) => _buildProfileOptionCard(option)).toList(),
+    );
   }
 
-  Widget _buildMenuCard(MenuOption item, bool isTablet, int index) {
+  Widget _buildProfileOptionCard(ProfileOption option) {
     return Container(
-          margin: EdgeInsets.only(bottom: AppTheme.spacing12),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: option.onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceColor,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            boxShadow: AppTheme.softShadow,
-            border: Border.all(color: item.color.withValues(alpha: 0.2)),
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: item.onTap,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              child: Padding(
-                padding: EdgeInsets.all(
-                  isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
+                child: Icon(option.icon, color: AppColors.primary, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: isTablet ? 60 : 50,
-                      height: isTablet ? 60 : 50,
-                      decoration: BoxDecoration(
-                        color: item.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(isTablet ? 30 : 25),
-                      ),
-                      child: Icon(
-                        item.icon,
-                        color: item.color,
-                        size: isTablet ? 28 : 24,
+                    Text(
+                      option.title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(width: AppTheme.spacing16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            style: AppTheme.labelLarge.copyWith(
-                              fontSize: isTablet ? 16 : 14,
-                            ),
-                          ),
-                          SizedBox(height: AppTheme.spacing4),
-                          Text(
-                            item.subtitle,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 4),
+                    Text(
+                      option.subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
                       ),
-                    ),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppTheme.textTertiary,
-                      size: isTablet ? 24 : 20,
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
-        )
-        .animate(delay: (index * 100).ms)
-        .fadeIn()
-        .slideX(begin: 0.3, duration: 600.ms);
-  }
-
-  Widget _buildSettingsSection(bool isTablet) {
-    return Container(
-      margin: EdgeInsets.all(
-        isTablet ? AppTheme.spacing32 : AppTheme.spacing24,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Igenamiterere',
-            style: AppTheme.headingMedium.copyWith(
-              fontSize: isTablet ? 24 : 20,
-            ),
-          ),
-          SizedBox(height: AppTheme.spacing16),
-
-          // Logout Button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _showLogoutDialog,
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text('Gusohoka'),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppTheme.errorColor),
-                foregroundColor: AppTheme.errorColor,
-                padding: EdgeInsets.symmetric(
-                  vertical: isTablet ? AppTheme.spacing20 : AppTheme.spacing16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, duration: 600.ms);
-  }
-
-  void _showEditProfileDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Guhindura umwirondoro'),
-            content: const Text(
-              'Iyi fonctionnalité izaza vuba. Urashobora guhindura amakuru yawe.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Sawa'),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: AppColors.textSecondary,
               ),
             ],
           ),
+        ),
+      ),
     );
   }
 
-  void _navigateToSettings() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
-  }
-
-  void _navigateToHelp() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const HelpScreen()));
+  Widget _buildLogoutButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: () => _showLogoutDialog(),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.error,
+          side: BorderSide(color: AppColors.error),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout, color: AppColors.error),
+            const SizedBox(width: 8),
+            const Text(
+              'Logout',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showLogoutDialog() {
@@ -457,47 +277,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Gusohoka'),
-            content: const Text('Urashaka gusohoka muri app?'),
+            title: const Text('Logout'),
+            content: const Text('Are you sure you want to logout?'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Kuraguza'),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  // Perform logout
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Wasohokaga neza!')),
-                  );
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await ref.read(authProvider.notifier).logout();
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  }
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.errorColor,
-                ),
-                child: const Text(
-                  'Sohoka',
-                  style: TextStyle(color: Colors.white),
-                ),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: const Text('Logout'),
               ),
             ],
           ),
     );
   }
+
+  // TTS Implementation
+  @override
+  String getTTSContent(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+
+    final buffer = StringBuffer();
+    buffer.write('Profile screen. ');
+
+    if (user != null) {
+      buffer.write('Welcome ${user.firstName} ${user.lastName}. ');
+      buffer.write('Email: ${user.email}. ');
+      if (user.phoneNumber != null) {
+        buffer.write('Phone: ${user.phoneNumber}. ');
+      }
+      buffer.write('Role: ${user.role}. ');
+    }
+
+    buffer.write('Available options: ');
+    buffer.write('1. Settings - Manage your account preferences. ');
+    buffer.write('2. Notifications - View and manage your notifications. ');
+    buffer.write('3. Help and Support - Get assistance and provide feedback. ');
+    buffer.write('4. About - Learn more about the Ubuzima platform. ');
+    buffer.write('5. Logout - Sign out of your account. ');
+
+    return buffer.toString();
+  }
+
+  String getScreenName() => 'Profile';
 }
 
-class MenuOption {
+/// Profile option data class
+class ProfileOption {
   final String title;
   final String subtitle;
   final IconData icon;
-  final Color color;
   final VoidCallback onTap;
 
-  MenuOption({
+  ProfileOption({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.color,
     required this.onTap,
   });
 }

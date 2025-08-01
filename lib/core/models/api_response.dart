@@ -1,46 +1,26 @@
-import 'user.dart';
-
-/// API Response model matching backend ApiResponse structure
+/// API Response model for handling all backend responses
 class ApiResponse<T> {
   final bool success;
-  final String message;
-  final String? userMessage;
-  final String? errorCode;
+  final String? message;
   final T? data;
-  final Map<String, dynamic>? metadata;
-  final DateTime timestamp;
-  final String? userRole;
+  final int? statusCode;
+  final Map<String, dynamic>? errors;
 
-  const ApiResponse({
+  ApiResponse({
     required this.success,
-    required this.message,
-    this.userMessage,
-    this.errorCode,
+    this.message,
     this.data,
-    this.metadata,
-    required this.timestamp,
-    this.userRole,
+    this.statusCode,
+    this.errors,
   });
 
-  factory ApiResponse.fromJson(
-    Map<String, dynamic> json,
-    T Function(dynamic)? fromJsonT,
-  ) {
+  factory ApiResponse.fromJson(Map<String, dynamic> json) {
     return ApiResponse<T>(
-      success: json['success'] as bool? ?? false,
-      message: json['message'] as String? ?? '',
-      userMessage: json['userMessage'] as String?,
-      errorCode: json['errorCode'] as String?,
-      data:
-          json['data'] != null && fromJsonT != null
-              ? fromJsonT(json['data'])
-              : json['data'] as T?,
-      metadata: json['metadata'] as Map<String, dynamic>?,
-      timestamp:
-          json['timestamp'] != null
-              ? DateTime.parse(json['timestamp'] as String)
-              : DateTime.now(),
-      userRole: json['userRole'] as String?,
+      success: json['success'] ?? false,
+      message: json['message'],
+      data: json['data'],
+      statusCode: json['statusCode'],
+      errors: json['errors'],
     );
   }
 
@@ -48,78 +28,46 @@ class ApiResponse<T> {
     return {
       'success': success,
       'message': message,
-      'userMessage': userMessage,
-      'errorCode': errorCode,
       'data': data,
-      'metadata': metadata,
-      'timestamp': timestamp.toIso8601String(),
-      'userRole': userRole,
+      'statusCode': statusCode,
+      'errors': errors,
     };
   }
 
-  /// Check if the response indicates success
-  bool get isSuccess => success;
-
-  /// Check if the response indicates failure
-  bool get isFailure => !success;
-
-  /// Get user-friendly error message
-  String get errorMessage => userMessage ?? message;
-
-  @override
-  String toString() {
-    return 'ApiResponse(success: $success, message: $message, data: $data, errorCode: $errorCode)';
-  }
-}
-
-/// Authentication response model
-class AuthResponse {
-  final String token;
-  final String? refreshToken;
-  final User user;
-
-  const AuthResponse({
-    required this.token,
-    this.refreshToken,
-    required this.user,
-  });
-
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    return AuthResponse(
-      token: json['token'] as String,
-      refreshToken: json['refreshToken'] as String?,
-      user: User.fromJson(json['user'] as Map<String, dynamic>),
+  /// Create a successful response
+  factory ApiResponse.success({T? data, String? message}) {
+    return ApiResponse<T>(
+      success: true,
+      data: data,
+      message: message ?? 'Operation successful',
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'token': token,
-      'refreshToken': refreshToken,
-      'user': user.toJson(),
-    };
-  }
-}
-
-/// Auth result wrapper for internal use
-class AuthResult {
-  final bool isSuccess;
-  final User? user;
-  final String? error;
-  final String? token;
-
-  const AuthResult._({
-    required this.isSuccess,
-    this.user,
-    this.error,
-    this.token,
-  });
-
-  factory AuthResult.success(User user, {String? token}) {
-    return AuthResult._(isSuccess: true, user: user, token: token);
+  /// Create an error response
+  factory ApiResponse.error({
+    String? message,
+    int? statusCode,
+    Map<String, dynamic>? errors,
+  }) {
+    return ApiResponse<T>(
+      success: false,
+      message: message ?? 'An error occurred',
+      statusCode: statusCode,
+      errors: errors,
+    );
   }
 
-  factory AuthResult.failure(String error) {
-    return AuthResult._(isSuccess: false, error: error);
+  /// Check if the response is successful
+  bool get isSuccess => success;
+
+  /// Check if the response is an error
+  bool get isError => !success;
+
+  /// Get error message or default message
+  String get errorMessage => message ?? 'Unknown error occurred';
+
+  @override
+  String toString() {
+    return 'ApiResponse{success: $success, message: $message, data: $data, statusCode: $statusCode}';
   }
 }

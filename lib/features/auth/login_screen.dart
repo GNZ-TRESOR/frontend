@@ -1,208 +1,245 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/services/auth_service.dart';
-import '../../widgets/voice_button.dart';
-import '../main/main_screen.dart';
-import 'register_screen.dart';
-import 'password_reset_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-class LoginScreen extends StatefulWidget {
+import '../../core/providers/auth_provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/utils/app_constants.dart';
+
+import '../../core/widgets/loading_overlay.dart';
+import '../../core/widgets/language_selector.dart';
+import '../dashboard/role_dashboard.dart';
+import 'register_screen.dart';
+
+/// Professional login screen for Family Planning Platform
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
-  bool _isLoading = false;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
   bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+      ),
+    );
+
+    _animationController.forward();
+  }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
-
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    final password = _passwordController.text;
 
-    try {
-      final result = await _authService.login(email, password);
-      
-      if (mounted) {
-        if (result.isSuccess) {
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => 
-                  const MainScreen(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                );
-              },
-              transitionDuration: const Duration(milliseconds: 300),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.error ?? 'Email cyangwa ijambo ry\'ibanga ntibikwiye'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Habaye ikosa mu kwinjira. Gerageza ukundi.'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
+    final success = await ref
+        .read(authProvider.notifier)
+        .login(email, password);
 
-  void _handleVoiceCommand(String command) {
-    final lowerCommand = command.toLowerCase();
-    if (lowerCommand.contains('login') || lowerCommand.contains('injira')) {
-      _login();
-    } else if (lowerCommand.contains('register') || lowerCommand.contains('iyandikishe')) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const RegisterScreen()),
+    if (success && mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const RoleDashboard()),
       );
     }
   }
 
+  void _navigateToRegister() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const RegisterScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
+    final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(isTablet ? AppTheme.spacing32 : AppTheme.spacing24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: isTablet ? AppTheme.spacing64 : AppTheme.spacing32),
-              _buildHeader(isTablet),
-              SizedBox(height: isTablet ? AppTheme.spacing48 : AppTheme.spacing32),
-              _buildLoginForm(isTablet),
-              SizedBox(height: AppTheme.spacing24),
-              _buildNavigationLinks(isTablet),
-            ],
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: LanguageSelector(isCompact: true, showLabel: false),
+          ),
+        ],
+      ),
+      body: LoadingOverlay(
+        isLoading: authState.isLoading,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 60),
+                        _buildHeader(),
+                        const SizedBox(height: 60),
+                        _buildLoginForm(),
+                        const SizedBox(height: 24),
+                        _buildLoginButton(),
+                        const SizedBox(height: 16),
+                        _buildForgotPassword(),
+                        const SizedBox(height: 40),
+                        _buildDivider(),
+                        const SizedBox(height: 24),
+                        _buildRegisterSection(),
+                        const SizedBox(height: 40),
+                        _buildFooter(),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ),
-      ),
-      floatingActionButton: VoiceButton(
-        prompt: 'Vuga "injira" kugira ngo winjire cyangwa "iyandikishe" kugira ngo wiyandikishe',
-        onResult: _handleVoiceCommand,
-        tooltip: 'Koresha ijwi kwinjira',
       ),
     );
   }
 
-  Widget _buildHeader(bool isTablet) {
+  Widget _buildHeader() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Murakaza neza',
-          style: AppTheme.headingLarge.copyWith(
-            fontSize: isTablet ? 32 : 28,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
-          ),
-        ).animate().fadeIn(duration: 800.ms).slideY(begin: -0.3),
-        SizedBox(height: AppTheme.spacing8),
-        Text(
-          'Injira kuri konti yawe',
-          style: AppTheme.bodyLarge.copyWith(
-            color: AppTheme.textSecondary,
-          ),
-        ).animate().fadeIn(delay: 200.ms, duration: 800.ms),
-        SizedBox(height: AppTheme.spacing32),
+        // Logo
         Container(
-          width: isTablet ? 120 : 80,
-          height: isTablet ? 120 : 80,
+          width: 100,
+          height: 100,
           decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            gradient: AppColors.primaryGradient,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-          child: Icon(
-            Icons.health_and_safety,
-            size: isTablet ? 60 : 40,
-            color: Colors.white,
+          child: const Icon(Icons.favorite, size: 50, color: Colors.white),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Welcome text
+        Text(
+          AppLocalizations.of(context)!.welcomeBack,
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
           ),
-        ).animate().scale(delay: 400.ms, duration: 600.ms),
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
+          AppLocalizations.of(context)!.signInToContinue,
+          style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }
 
-  Widget _buildLoginForm(bool isTablet) {
+  Widget _buildLoginForm() {
     return Form(
       key: _formKey,
       child: Column(
         children: [
+          // Email field
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
             decoration: InputDecoration(
-              labelText: 'Email',
-              hintText: 'Andika email yawe',
-              prefixIcon: const Icon(Icons.email_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
+              labelText: AppLocalizations.of(context)!.emailAddress,
+              hintText: AppLocalizations.of(context)!.enterEmail,
+              prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Email ni ngombwa';
+                return AppLocalizations.of(context)!.pleaseEnterEmail;
               }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Andika email nyayo';
+              if (!AppConstants.isValidEmail(value)) {
+                return AppLocalizations.of(context)!.pleaseEnterValidEmail;
               }
               return null;
             },
-          ).animate().slideX(begin: 0.3, delay: 600.ms),
-          SizedBox(height: AppTheme.spacing20),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Password field
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _handleLogin(),
             decoration: InputDecoration(
-              labelText: 'Ijambo ry\'ibanga',
-              hintText: 'Andika ijambo ry\'ibanga',
-              prefixIcon: const Icon(Icons.lock_outlined),
+              labelText: AppLocalizations.of(context)!.password,
+              hintText: AppLocalizations.of(context)!.enterPassword,
+              prefixIcon: Icon(Icons.lock_outlined, color: AppColors.primary),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: AppColors.textSecondary,
                 ),
                 onPressed: () {
                   setState(() {
@@ -210,93 +247,189 @@ class _LoginScreenState extends State<LoginScreen> {
                   });
                 },
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Ijambo ry\'ibanga ni ngombwa';
+                return AppLocalizations.of(context)!.pleaseEnterPassword;
               }
               if (value.length < 6) {
-                return 'Ijambo ry\'ibanga rigomba kuba rifite byibura inyuguti 6';
+                return AppLocalizations.of(context)!.passwordTooShort;
               }
               return null;
             },
-          ).animate().slideX(begin: 0.3, delay: 800.ms),
-          SizedBox(height: AppTheme.spacing32),
-          SizedBox(
-            width: double.infinity,
-            height: isTablet ? 56 : 48,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _login,
-              style: AppTheme.primaryButtonStyle,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      'Injira',
-                      style: AppTheme.titleMedium.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ).animate().slideY(begin: 0.3, delay: 1000.ms),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Remember me checkbox
+          Row(
+            children: [
+              Checkbox(
+                value: _rememberMe,
+                onChanged: (value) {
+                  setState(() {
+                    _rememberMe = value ?? false;
+                  });
+                },
+                activeColor: AppColors.primary,
+              ),
+              Text(
+                AppLocalizations.of(context)!.rememberMe,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildNavigationLinks(bool isTablet) {
-    return Column(
+  Widget _buildLoginButton() {
+    final authState = ref.watch(authProvider);
+
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: authState.isLoading ? null : _handleLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 4,
+        ),
+        child:
+            authState.isLoading
+                ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                : Text(
+                  AppLocalizations.of(context)!.signIn,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+      ),
+    );
+  }
+
+  Widget _buildForgotPassword() {
+    return TextButton(
+      onPressed: () {
+        // TODO: Implement forgot password
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Forgot password feature coming soon')),
+        );
+      },
+      child: Text(
+        AppLocalizations.of(context)!.forgotPassword,
+        style: TextStyle(
+          color: AppColors.primary,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Row(
       children: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const PasswordResetScreen()),
-            );
-          },
+        Expanded(child: Divider(color: AppColors.border)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Wibagiriye ijambo ry\'ibanga?',
-            style: AppTheme.bodyMedium.copyWith(
-              color: AppTheme.primaryColor,
+            AppLocalizations.of(context)!.or,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),
-        ).animate().fadeIn(delay: 1200.ms),
-        SizedBox(height: AppTheme.spacing16),
+        ),
+        Expanded(child: Divider(color: AppColors.border)),
+      ],
+    );
+  }
+
+  Widget _buildRegisterSection() {
+    return Column(
+      children: [
+        Text(
+          AppLocalizations.of(context)!.dontHaveAccount,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: _navigateToRegister,
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: Text(
+            AppLocalizations.of(context)!.createAccount,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooter() {
+    return Column(
+      children: [
+        Text(
+          AppLocalizations.of(context)!.bySigningIn,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Nta konti ufite? ',
-              style: AppTheme.bodyMedium.copyWith(
-                color: AppTheme.textSecondary,
+            TextButton(
+              onPressed: () {
+                // TODO: Show terms of service
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
+              child: Text(
+                AppLocalizations.of(context)!.termsOfService,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+            Text(
+              AppLocalizations.of(context)!.and,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                );
+                // TODO: Show privacy policy
               },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: Text(
-                'Iyandikishe',
-                style: AppTheme.bodyMedium.copyWith(
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
+                AppLocalizations.of(context)!.privacyPolicy,
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ],
-        ).animate().fadeIn(delay: 1400.ms),
+        ),
       ],
     );
   }

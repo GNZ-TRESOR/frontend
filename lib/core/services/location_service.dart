@@ -1,128 +1,126 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../models/health_facility.dart';
-import 'health_facility_service.dart';
+import 'package:flutter/foundation.dart';
 
-/// Location service for handling GPS, permissions, and nearby facility searches
+/// Location service for handling geolocation functionality
 class LocationService {
   static final LocationService _instance = LocationService._internal();
   factory LocationService() => _instance;
   LocationService._internal();
 
-  final HealthFacilityService _facilityService = HealthFacilityService();
+  static LocationService get instance => _instance;
 
-  /// Check if location services are enabled
-  Future<bool> isLocationServiceEnabled() async {
-    return await Geolocator.isLocationServiceEnabled();
-  }
+  Position? _currentPosition;
+  String? _currentAddress;
+  bool _isLocationEnabled = false;
 
-  /// Check location permission status
-  Future<LocationPermission> checkLocationPermission() async {
-    return await Geolocator.checkPermission();
-  }
+  /// Get current position
+  Position? get currentPosition => _currentPosition;
 
-  /// Request location permission
-  Future<LocationPermission> requestLocationPermission() async {
-    LocationPermission permission = await Geolocator.checkPermission();
+  /// Get current address
+  String? get currentAddress => _currentAddress;
 
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
+  /// Check if location is enabled
+  bool get isLocationEnabled => _isLocationEnabled;
 
-    if (permission == LocationPermission.deniedForever) {
-      // Open app settings for user to manually enable location
-      await openAppSettings();
-    }
-
-    return permission;
-  }
-
-  /// Get current position with high accuracy
-  Future<Position?> getCurrentPosition() async {
+  /// Initialize location service
+  Future<bool> initialize() async {
     try {
       // Check if location services are enabled
-      bool serviceEnabled = await isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         debugPrint('Location services are disabled');
+        return false;
+      }
+
+      // Check location permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          debugPrint('Location permissions are denied');
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        debugPrint('Location permissions are permanently denied');
+        return false;
+      }
+
+      _isLocationEnabled = true;
+      return true;
+    } catch (e) {
+      debugPrint('Error initializing location service: $e');
+      return false;
+    }
+  }
+
+  /// Get current location
+  Future<Position?> getCurrentLocation({bool forceRefresh = false}) async {
+    try {
+      if (!_isLocationEnabled && !await initialize()) {
         return null;
       }
 
-      // Check and request permission
-      LocationPermission permission = await requestLocationPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        debugPrint('Location permission denied');
-        return null;
+      if (_currentPosition != null && !forceRefresh) {
+        return _currentPosition;
       }
 
-      // Get current position with high accuracy
-      Position position = await Geolocator.getCurrentPosition(
+      _currentPosition = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
 
-      debugPrint(
-        'Current position: ${position.latitude}, ${position.longitude}',
-      );
-      return position;
+      // Get address from coordinates
+      if (_currentPosition != null) {
+        await _updateAddressFromPosition(_currentPosition!);
+      }
+
+      return _currentPosition;
     } catch (e) {
-      debugPrint('Error getting current position: $e');
+      debugPrint('Error getting current location: $e');
       return null;
     }
   }
 
-  /// Get address from coordinates (reverse geocoding)
-  Future<String?> getAddressFromCoordinates(
-    double latitude,
-    double longitude,
-  ) async {
+  /// Update address from position
+  Future<void> _updateAddressFromPosition(Position position) async {
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(
-        latitude,
-        longitude,
+        position.latitude,
+        position.longitude,
       );
 
       if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        return '${place.street}, ${place.locality}, ${place.administrativeArea}, ${place.country}';
+        final placemark = placemarks.first;
+        _currentAddress = _formatAddress(placemark);
       }
-
-      return null;
     } catch (e) {
       debugPrint('Error getting address from coordinates: $e');
-      return null;
+      _currentAddress = 'Unknown location';
     }
   }
 
-  /// Get coordinates from address (forward geocoding)
-  Future<Position?> getCoordinatesFromAddress(String address) async {
-    try {
-      List<Location> locations = await locationFromAddress(address);
+  /// Format address from placemark
+  String _formatAddress(Placemark placemark) {
+    List<String> addressParts = [];
 
-      if (locations.isNotEmpty) {
-        Location location = locations[0];
-        return Position(
-          latitude: location.latitude,
-          longitude: location.longitude,
-          timestamp: DateTime.now(),
-          accuracy: 0,
-          altitude: 0,
-          altitudeAccuracy: 0,
-          heading: 0,
-          headingAccuracy: 0,
-          speed: 0,
-          speedAccuracy: 0,
-        );
-      }
-
-      return null;
-    } catch (e) {
-      debugPrint('Error getting coordinates from address: $e');
-      return null;
+    if (placemark.street?.isNotEmpty == true) {
+      addressParts.add(placemark.street!);
     }
+    if (placemark.locality?.isNotEmpty == true) {
+      addressParts.add(placemark.locality!);
+    }
+    if (placemark.administrativeArea?.isNotEmpty == true) {
+      addressParts.add(placemark.administrativeArea!);
+    }
+    if (placemark.country?.isNotEmpty == true) {
+      addressParts.add(placemark.country!);
+    }
+
+    return addressParts.join(', ');
   }
 
   /// Calculate distance between two points in kilometers
@@ -133,206 +131,110 @@ class LocationService {
     double endLongitude,
   ) {
     return Geolocator.distanceBetween(
-          startLatitude,
-          startLongitude,
-          endLatitude,
-          endLongitude,
-        ) /
-        1000; // Convert to kilometers
+      startLatitude,
+      startLongitude,
+      endLatitude,
+      endLongitude,
+    ) / 1000; // Convert to kilometers
   }
 
-  /// Get nearby health facilities
-  Future<List<HealthFacility>> getNearbyFacilities({
-    required double latitude,
-    required double longitude,
-    double radiusKm = 10.0,
-    FacilityType? type,
-    int limit = 20,
-  }) async {
-    try {
-      // Get facilities from backend
-      List<HealthFacility> facilities = await _facilityService
-          .getNearbyFacilities(
-            latitude: latitude,
-            longitude: longitude,
-            radiusKm: radiusKm,
-            type: type,
-            limit: limit,
-          );
+  /// Get distance to facility
+  double? getDistanceToFacility(double facilityLat, double facilityLng) {
+    if (_currentPosition == null) return null;
 
-      // Calculate distances and sort by distance
-      for (var facility in facilities) {
-        if (facility.latitude != null && facility.longitude != null) {
-          final distance = calculateDistance(
-            latitude,
-            longitude,
-            facility.latitude!,
-            facility.longitude!,
-          );
-          // Store distance in metadata for sorting
-          facility.copyWith(
-            metadata: {...(facility.metadata ?? {}), 'distance': distance},
-          );
-        }
-      }
+    return calculateDistance(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      facilityLat,
+      facilityLng,
+    );
+  }
 
-      // Sort by distance
-      facilities.sort((a, b) {
-        final distanceA = a.metadata?['distance'] ?? double.infinity;
-        final distanceB = b.metadata?['distance'] ?? double.infinity;
-        return distanceA.compareTo(distanceB);
-      });
-
-      return facilities;
-    } catch (e) {
-      debugPrint('Error getting nearby facilities: $e');
-      return [];
+  /// Format distance for display
+  String formatDistance(double distanceKm) {
+    if (distanceKm < 1) {
+      return '${(distanceKm * 1000).round()}m';
+    } else if (distanceKm < 10) {
+      return '${distanceKm.toStringAsFixed(1)}km';
+    } else {
+      return '${distanceKm.round()}km';
     }
   }
 
-  /// Search facilities by location name
-  Future<List<HealthFacility>> searchFacilitiesByLocation(
-    String locationName,
-  ) async {
-    try {
-      // First get coordinates for the location
-      Position? position = await getCoordinatesFromAddress(locationName);
-
-      if (position != null) {
-        return await getNearbyFacilities(
-          latitude: position.latitude,
-          longitude: position.longitude,
-          radiusKm: 20.0, // Larger radius for search
-        );
-      }
-
-      return [];
-    } catch (e) {
-      debugPrint('Error searching facilities by location: $e');
-      return [];
-    }
+  /// Check if location permission is granted
+  Future<bool> hasLocationPermission() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.always ||
+           permission == LocationPermission.whileInUse;
   }
 
-  /// Get user's current district and sector
-  Future<Map<String, String?>> getCurrentLocationDetails() async {
+  /// Request location permission
+  Future<bool> requestLocationPermission() async {
     try {
-      Position? position = await getCurrentPosition();
-      if (position == null) return {};
-
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        return {
-          'district': place.administrativeArea,
-          'sector': place.locality,
-          'address': '${place.street}, ${place.locality}',
-          'country': place.country,
-        };
-      }
-
-      return {};
+      LocationPermission permission = await Geolocator.requestPermission();
+      return permission == LocationPermission.always ||
+             permission == LocationPermission.whileInUse;
     } catch (e) {
-      debugPrint('Error getting current location details: $e');
-      return {};
-    }
-  }
-
-  /// Check if user is in Rwanda
-  Future<bool> isUserInRwanda() async {
-    try {
-      Position? position = await getCurrentPosition();
-      if (position == null) return false;
-
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        return place.country?.toLowerCase() == 'rwanda' ||
-            place.isoCountryCode?.toLowerCase() == 'rw';
-      }
-
-      return false;
-    } catch (e) {
-      debugPrint('Error checking if user is in Rwanda: $e');
+      debugPrint('Error requesting location permission: $e');
       return false;
     }
   }
 
-  /// Get facilities in specific district
-  Future<List<HealthFacility>> getFacilitiesInDistrict(String district) async {
-    try {
-      return await _facilityService.getFacilitiesByDistrict(district);
-    } catch (e) {
-      debugPrint('Error getting facilities in district: $e');
-      return [];
-    }
-  }
-
-  /// Get emergency facilities nearby (hospitals only)
-  Future<List<HealthFacility>> getEmergencyFacilities({
-    required double latitude,
-    required double longitude,
-    double radiusKm = 25.0,
-  }) async {
-    return await getNearbyFacilities(
-      latitude: latitude,
-      longitude: longitude,
-      radiusKm: radiusKm,
-      type: FacilityType.HOSPITAL,
-      limit: 10,
-    );
-  }
-
-  /// Get facilities with specific services
-  Future<List<HealthFacility>> getFacilitiesWithService({
-    required double latitude,
-    required double longitude,
-    required String service,
-    double radiusKm = 15.0,
-  }) async {
-    try {
-      List<HealthFacility> allFacilities = await getNearbyFacilities(
-        latitude: latitude,
-        longitude: longitude,
-        radiusKm: radiusKm,
-      );
-
-      // Filter facilities that offer the specific service
-      return allFacilities.where((facility) {
-        return facility.services.any(
-          (s) => s.toLowerCase().contains(service.toLowerCase()),
-        );
-      }).toList();
-    } catch (e) {
-      debugPrint('Error getting facilities with service: $e');
-      return [];
-    }
-  }
-
-  /// Start location tracking (for real-time updates)
-  Stream<Position> getPositionStream() {
-    return Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // Update every 10 meters
-      ),
-    );
-  }
-
-  /// Open device location settings
+  /// Open location settings
   Future<void> openLocationSettings() async {
     await Geolocator.openLocationSettings();
   }
 
-  /// Open app settings for permissions
+  /// Open app settings
   Future<void> openAppSettings() async {
     await openAppSettings();
+  }
+
+  /// Get location stream for real-time updates
+  Stream<Position> getLocationStream() {
+    const LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 100, // Update every 100 meters
+    );
+
+    return Geolocator.getPositionStream(locationSettings: locationSettings);
+  }
+
+  /// Check if coordinates are in Rwanda (approximate bounds)
+  bool isInRwanda(double latitude, double longitude) {
+    // Rwanda approximate bounds
+    const double minLat = -2.9;
+    const double maxLat = -1.0;
+    const double minLng = 28.8;
+    const double maxLng = 30.9;
+
+    return latitude >= minLat &&
+           latitude <= maxLat &&
+           longitude >= minLng &&
+           longitude <= maxLng;
+  }
+
+  /// Get Rwanda districts based on coordinates (simplified)
+  String? getRwandaDistrict(double latitude, double longitude) {
+    if (!isInRwanda(latitude, longitude)) return null;
+
+    // Simplified district mapping (in real app, use proper geocoding service)
+    if (latitude > -2.0 && longitude > 30.0) return 'Kigali';
+    if (latitude > -2.0 && longitude < 29.5) return 'Rubavu';
+    if (latitude < -2.5 && longitude > 30.0) return 'Huye';
+    if (latitude < -2.5 && longitude < 29.5) return 'Rusizi';
+    
+    return 'Rwanda'; // Default
+  }
+
+  /// Clear cached location data
+  void clearCache() {
+    _currentPosition = null;
+    _currentAddress = null;
+  }
+
+  /// Dispose resources
+  void dispose() {
+    clearCache();
   }
 }

@@ -1,0 +1,786 @@
+{
+  "@@locale": "en",
+  "appName": "Ubuzima",
+  "@appName": {
+    "description": "The name of the application"
+  },
+  "appTagline": "Empowering Your Health Journey",
+  "@appTagline": {
+    "description": "The tagline of the application"
+  },
+  "appDescription": "Your comprehensive companion for family planning, reproductive health, and wellness - designed with care for the modern woman",
+  "@appDescription": {
+    "description": "The description of the application"
+  },
+
+  "welcomeBack": "Welcome Back",
+  "@welcomeBack": {
+    "description": "Welcome message on login screen"
+  },
+  "signInToContinue": "Sign in to continue your health journey",
+  "@signInToContinue": {
+    "description": "Subtitle on login screen"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Email field label"
+  },
+  "emailAddress": "Email Address",
+  "@emailAddress": {
+    "description": "Email address field label"
+  },
+  "enterEmail": "Enter your email",
+  "@enterEmail": {
+    "description": "Email field hint text"
+  },
+  "pleaseEnterEmail": "Please enter your email",
+  "@pleaseEnterEmail": {
+    "description": "Email validation error"
+  },
+  "pleaseEnterValidEmail": "Please enter a valid email",
+  "@pleaseEnterValidEmail": {
+    "description": "Email format validation error"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Password field label"
+  },
+  "enterPassword": "Enter your password",
+  "@enterPassword": {
+    "description": "Password field hint text"
+  },
+  "pleaseEnterPassword": "Please enter your password",
+  "@pleaseEnterPassword": {
+    "description": "Password validation error"
+  },
+  "passwordTooShort": "Password must be at least 6 characters",
+  "@passwordTooShort": {
+    "description": "Password length validation error"
+  },
+  "rememberMe": "Remember me",
+  "@rememberMe": {
+    "description": "Remember me checkbox label"
+  },
+  "signIn": "Sign In",
+  "@signIn": {
+    "description": "Sign in button text"
+  },
+  "forgotPassword": "Forgot Password?",
+  "@forgotPassword": {
+    "description": "Forgot password link text"
+  },
+  "or": "OR",
+  "@or": {
+    "description": "Divider text between login options"
+  },
+  "dontHaveAccount": "Don't have an account?",
+  "@dontHaveAccount": {
+    "description": "Text asking if user doesn't have account"
+  },
+  "createAccount": "Create Account",
+  "@createAccount": {
+    "description": "Create account button text"
+  },
+  "termsOfService": "Terms of Service",
+  "@termsOfService": {
+    "description": "Terms of service link text"
+  },
+  "privacyPolicy": "Privacy Policy",
+  "@privacyPolicy": {
+    "description": "Privacy policy link text"
+  },
+  "bySigningIn": "By signing in, you agree to our",
+  "@bySigningIn": {
+    "description": "Terms agreement text"
+  },
+  "and": " and ",
+  "@and": {
+    "description": "Conjunction word"
+  },
+
+  "goodMorning": "Good morning",
+  "@goodMorning": {
+    "description": "Morning greeting"
+  },
+  "goodAfternoon": "Good afternoon",
+  "@goodAfternoon": {
+    "description": "Afternoon greeting"
+  },
+  "goodEvening": "Good evening",
+  "@goodEvening": {
+    "description": "Evening greeting"
+  },
+
+  "administrator": "Administrator",
+  "@administrator": {
+    "description": "Administrator role display name"
+  },
+  "healthWorker": "Health Worker",
+  "@healthWorker": {
+    "description": "Health worker role display name"
+  },
+  "client": "Client",
+  "@client": {
+    "description": "Client role display name"
+  },
+
+  "loginSuccess": "Login successful!",
+  "@loginSuccess": {
+    "description": "Login success message"
+  },
+  "registrationSuccess": "Registration successful!",
+  "@registrationSuccess": {
+    "description": "Registration success message"
+  },
+  "updateSuccess": "Updated successfully!",
+  "@updateSuccess": {
+    "description": "Update success message"
+  },
+  "deleteSuccess": "Deleted successfully!",
+  "@deleteSuccess": {
+    "description": "Delete success message"
+  },
+
+  "consultation": "Consultation",
+  "@consultation": {
+    "description": "Consultation appointment type"
+  },
+  "familyPlanning": "Family Planning",
+  "@familyPlanning": {
+    "description": "Family planning appointment type"
+  },
+  "prenatalCare": "Prenatal Care",
+  "@prenatalCare": {
+    "description": "Prenatal care appointment type"
+  },
+  "postnatalCare": "Postnatal Care",
+  "@postnatalCare": {
+    "description": "Postnatal care appointment type"
+  },
+  "vaccination": "Vaccination",
+  "@vaccination": {
+    "description": "Vaccination appointment type"
+  },
+  "healthScreening": "Health Screening",
+  "@healthScreening": {
+    "description": "Health screening appointment type"
+  },
+  "followUp": "Follow Up",
+  "@followUp": {
+    "description": "Follow up appointment type"
+  },
+  "emergency": "Emergency",
+  "@emergency": {
+    "description": "Emergency appointment type"
+  },
+  "counseling": "Counseling",
+  "@counseling": {
+    "description": "Counseling appointment type"
+  },
+  "other": "Other",
+  "@other": {
+    "description": "Other appointment type"
+  },
+
+  "onceDaily": "Once daily",
+  "@onceDaily": {
+    "description": "Once daily medication frequency"
+  },
+  "twiceDaily": "Twice daily",
+  "@twiceDaily": {
+    "description": "Twice daily medication frequency"
+  },
+  "threeTimes": "Three times daily",
+  "@threeTimes": {
+    "description": "Three times daily medication frequency"
+  },
+  "fourTimes": "Four times daily",
+  "@fourTimes": {
+    "description": "Four times daily medication frequency"
+  },
+  "asNeeded": "As needed",
+  "@asNeeded": {
+    "description": "As needed medication frequency"
+  },
+  "weekly": "Weekly",
+  "@weekly": {
+    "description": "Weekly medication frequency"
+  },
+  "monthly": "Monthly",
+  "@monthly": {
+    "description": "Monthly medication frequency"
+  },
+
+  "spotting": "Spotting",
+  "@spotting": {
+    "description": "Spotting menstrual flow type"
+  },
+  "light": "Light",
+  "@light": {
+    "description": "Light menstrual flow type"
+  },
+  "medium": "Medium",
+  "@medium": {
+    "description": "Medium menstrual flow type"
+  },
+  "heavy": "Heavy",
+  "@heavy": {
+    "description": "Heavy menstrual flow type"
+  },
+
+  "language": "Language",
+  "@language": {
+    "description": "Language selector label"
+  },
+  "selectLanguage": "Select Language",
+  "@selectLanguage": {
+    "description": "Language selector title"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language name"
+  },
+  "french": "Français",
+  "@french": {
+    "description": "French language name"
+  },
+  "kinyarwanda": "Kinyarwanda",
+  "@kinyarwanda": {
+    "description": "Kinyarwanda language name"
+  },
+
+  "welcomeBackComma": "Welcome back,",
+  "@welcomeBackComma": {
+    "description": "Welcome back greeting with comma"
+  },
+  "letsTrackYourHealthJourney": "Let's track your health journey",
+  "@letsTrackYourHealthJourney": {
+    "description": "Health journey tracking message"
+  },
+  "appointmentManagement": "Appointment Management",
+  "@appointmentManagement": {
+    "description": "Appointment management title"
+  },
+  "myAppointments": "My Appointments",
+  "@myAppointments": {
+    "description": "My appointments title"
+  },
+  "healthOverview": "Health Overview",
+  "@healthOverview": {
+    "description": "Health overview section title"
+  },
+  "totalRecords": "Total Records",
+  "@totalRecords": {
+    "description": "Total records label"
+  },
+  "recentRecords": "Recent (30d)",
+  "@recentRecords": {
+    "description": "Recent records label"
+  },
+  "generalConsultation": "General Consultation",
+  "@generalConsultation": {
+    "description": "General consultation appointment type"
+  },
+  "followUpVisit": "Follow-up Visit",
+  "@followUpVisit": {
+    "description": "Follow-up visit appointment type"
+  },
+  "healthCounseling": "Health Counseling",
+  "@healthCounseling": {
+    "description": "Health counseling appointment type"
+  },
+  "dashboard": "Dashboard",
+  "@dashboard": {
+    "description": "Dashboard navigation label"
+  },
+  "appointments": "Appointments",
+  "@appointments": {
+    "description": "Appointments navigation label"
+  },
+  "healthRecords": "Health Records",
+  "@healthRecords": {
+    "description": "Health records navigation label"
+  },
+  "medications": "Medications",
+  "@medications": {
+    "description": "Medications navigation label"
+  },
+  "education": "Education",
+  "@education": {
+    "description": "Education navigation label"
+  },
+  "community": "Community",
+  "@community": {
+    "description": "Community navigation label"
+  },
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile navigation label"
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings navigation label"
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button label"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home tab label"
+  },
+  "health": "Health",
+  "@health": {
+    "description": "Health tab label"
+  },
+  "bookAppointment": "Book Appointment",
+  "@bookAppointment": {
+    "description": "Book appointment button label"
+  },
+  "viewRecords": "View Records",
+  "@viewRecords": {
+    "description": "View records button label"
+  },
+  "trackCycle": "Track Cycle",
+  "@trackCycle": {
+    "description": "Track cycle button label"
+  },
+  "aiAssistant": "AI Assistant",
+  "@aiAssistant": {
+    "description": "AI assistant tooltip"
+  },
+  "readScreenContentAloud": "Read screen content aloud",
+  "@readScreenContentAloud": {
+    "description": "TTS button tooltip"
+  },
+  "today": "Today",
+  "@today": {
+    "description": "Today tab label"
+  },
+  "upcoming": "Upcoming",
+  "@upcoming": {
+    "description": "Upcoming tab label"
+  },
+  "past": "Past",
+  "@past": {
+    "description": "Past tab label"
+  },
+  "all": "All",
+  "@all": {
+    "description": "All tab label"
+  },
+  "manageSlots": "Manage Slots",
+  "@manageSlots": {
+    "description": "Manage slots tab label"
+  },
+
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "add": "Add",
+  "search": "Search",
+  "filter": "Filter",
+  "sort": "Sort",
+  "refresh": "Refresh",
+  "loading": "Loading...",
+  "error": "Error",
+  "success": "Success",
+  "warning": "Warning",
+  "info": "Information",
+  "confirm": "Confirm",
+  "yes": "Yes",
+  "no": "No",
+  "ok": "OK",
+  "close": "Close",
+  "back": "Back",
+  "next": "Next",
+  "previous": "Previous",
+  "done": "Done",
+  "submit": "Submit",
+  "send": "Send",
+  "receive": "Receive",
+  "view": "View",
+  "details": "Details",
+  "more": "More",
+  "less": "Less",
+  "show": "Show",
+  "hide": "Hide",
+  "select": "Select",
+  "choose": "Choose",
+  "pick": "Pick",
+  "upload": "Upload",
+  "download": "Download",
+  "share": "Share",
+  "copy": "Copy",
+  "paste": "Paste",
+  "cut": "Cut",
+  "undo": "Undo",
+  "redo": "Redo",
+  "clear": "Clear",
+  "reset": "Reset",
+  "update": "Update",
+  "create": "Create",
+  "open": "Open",
+
+  "bookNewAppointment": "Book new appointment",
+  "appointmentBooked": "Appointment booked",
+  "appointmentCancelled": "Appointment cancelled",
+  "appointmentConfirmed": "Appointment confirmed",
+  "appointmentRescheduled": "Appointment rescheduled",
+  "noAppointments": "No appointments",
+  "noAppointmentsFound": "No appointments found",
+  "appointmentDetails": "Appointment details",
+  "appointmentType": "Appointment type",
+  "appointmentDate": "Appointment date",
+  "appointmentTime": "Appointment time",
+  "appointmentLocation": "Appointment location",
+  "appointmentNotes": "Appointment notes",
+  "appointmentStatus": "Appointment status",
+  "appointmentDuration": "Appointment duration",
+  "appointmentReminder": "Appointment reminder",
+  "rescheduleAppointment": "Reschedule appointment",
+  "cancelAppointment": "Cancel appointment",
+  "confirmAppointment": "Confirm appointment",
+  "editAppointment": "Edit appointment",
+  "deleteAppointment": "Delete appointment",
+  "viewAppointment": "View appointment",
+  "searchAppointments": "Search appointments",
+  "filterAppointments": "Filter appointments",
+  "sortAppointments": "Sort appointments",
+  "exportAppointments": "Export appointments",
+  "printAppointments": "Print appointments",
+  "shareAppointments": "Share appointments",
+  "syncAppointments": "Sync appointments",
+  "backupAppointments": "Backup appointments",
+  "restoreAppointments": "Restore appointments",
+  "importAppointments": "Import appointments",
+  "scheduled": "Scheduled",
+  "confirmed": "Confirmed",
+  "completed": "Completed",
+  "cancelled": "Cancelled",
+  "rescheduled": "Rescheduled",
+  "pending": "Pending",
+  "approved": "Approved",
+  "rejected": "Rejected",
+  "inProgress": "In Progress",
+  "onHold": "On Hold",
+  "delayed": "Delayed",
+  "urgent": "Urgent",
+  "normal": "Normal",
+  "low": "Low",
+  "high": "High",
+  "critical": "Critical",
+  "routine": "Routine",
+  "diagnosis": "Diagnosis",
+  "treatment": "Treatment",
+  "therapy": "Therapy",
+  "surgery": "Surgery",
+  "procedure": "Procedure",
+  "test": "Test",
+  "examination": "Examination",
+  "visit": "Visit",
+  "session": "Session",
+  "assessment": "Assessment",
+  "evaluation": "Evaluation",
+  "review": "Review",
+  "analysis": "Analysis",
+  "report": "Report",
+  "summary": "Summary",
+  "overview": "Overview",
+  "history": "History",
+  "record": "Record",
+  "file": "File",
+  "document": "Document",
+  "form": "Form",
+  "application": "Application",
+  "request": "Request",
+  "order": "Order",
+  "prescription": "Prescription",
+  "medication": "Medication",
+  "medicine": "Medicine",
+  "drug": "Drug",
+  "pill": "Pill",
+  "tablet": "Tablet",
+  "capsule": "Capsule",
+  "injection": "Injection",
+  "vaccine": "Vaccine",
+  "shot": "Shot",
+  "dose": "Dose",
+  "dosage": "Dosage",
+  "frequency": "Frequency",
+  "schedule": "Schedule",
+  "duration": "Duration",
+  "period": "Period",
+  "interval": "Interval",
+  "cycle": "Cycle",
+  "phase": "Phase",
+  "stage": "Stage",
+  "step": "Step",
+  "level": "Level",
+  "grade": "Grade",
+  "degree": "Degree",
+  "severity": "Severity",
+  "intensity": "Intensity",
+  "strength": "Strength",
+  "health": "Health",
+  "wellness": "Wellness",
+  "condition": "Condition",
+  "state": "State",
+  "status": "Status",
+  "situation": "Situation",
+  "position": "Position",
+  "location": "Location",
+  "place": "Place",
+  "area": "Area",
+  "region": "Region",
+  "zone": "Zone",
+  "center": "Center",
+  "clinic": "Clinic",
+  "hospital": "Hospital",
+  "pharmacy": "Pharmacy",
+  "laboratory": "Laboratory",
+  "office": "Office",
+  "room": "Room",
+  "department": "Department",
+  "unit": "Unit",
+  "division": "Division",
+  "section": "Section",
+  "service": "Service",
+  "program": "Program",
+  "project": "Project",
+  "plan": "Plan",
+  "method": "Method",
+  "technique": "Technique",
+  "approach": "Approach",
+  "system": "System",
+  "network": "Network",
+  "platform": "Platform",
+
+  "contraception": "Contraception",
+  "@contraception": {
+    "description": "Contraception section title"
+  },
+  "contraceptiveMethods": "Contraceptive Methods",
+  "@contraceptiveMethods": {
+    "description": "Contraceptive methods screen title"
+  },
+  "myMethods": "My Methods",
+  "@myMethods": {
+    "description": "User's contraceptive methods tab"
+  },
+  "sideEffects": "Side Effects",
+  "@sideEffects": {
+    "description": "Side effects tab/section"
+  },
+  "sideEffectsReports": "Side Effects Reports",
+  "@sideEffectsReports": {
+    "description": "Side effects reports for health workers"
+  },
+  "reportSideEffect": "Report Side Effect",
+  "@reportSideEffect": {
+    "description": "Report side effect button"
+  },
+  "addMethod": "Add Method",
+  "@addMethod": {
+    "description": "Add contraceptive method button"
+  },
+  "editMethod": "Edit Method",
+  "@editMethod": {
+    "description": "Edit contraceptive method button"
+  },
+  "deleteMethod": "Delete Method",
+  "@deleteMethod": {
+    "description": "Delete contraceptive method button"
+  },
+  "chooseMethod": "Choose Method",
+  "@chooseMethod": {
+    "description": "Choose contraceptive method button"
+  },
+  "methodName": "Method Name",
+  "@methodName": {
+    "description": "Contraceptive method name field"
+  },
+  "methodDescription": "Method Description",
+  "@methodDescription": {
+    "description": "Contraceptive method description field"
+  },
+  "effectiveness": "Effectiveness",
+  "@effectiveness": {
+    "description": "Contraceptive method effectiveness"
+  },
+  "instructions": "Instructions",
+  "@instructions": {
+    "description": "Contraceptive method instructions"
+  },
+  "startDate": "Start Date",
+  "@startDate": {
+    "description": "Contraceptive method start date"
+  },
+  "endDate": "End Date",
+  "@endDate": {
+    "description": "Contraceptive method end date"
+  },
+  "nextAppointment": "Next Appointment",
+  "@nextAppointment": {
+    "description": "Next appointment date"
+  },
+  "prescribedBy": "Prescribed By",
+  "@prescribedBy": {
+    "description": "Who prescribed the method"
+  },
+  "isActive": "Is Active",
+  "@isActive": {
+    "description": "Whether the method is currently active"
+  },
+  "additionalNotes": "Additional Notes",
+  "@additionalNotes": {
+    "description": "Additional notes field"
+  },
+
+  "birthControlPills": "Birth Control Pills",
+  "@birthControlPills": {
+    "description": "Birth control pills contraceptive method"
+  },
+  "injection": "Injection",
+  "@injection": {
+    "description": "Injection contraceptive method"
+  },
+  "implant": "Implant",
+  "@implant": {
+    "description": "Implant contraceptive method"
+  },
+  "iud": "IUD",
+  "@iud": {
+    "description": "IUD contraceptive method"
+  },
+  "condoms": "Condoms",
+  "@condoms": {
+    "description": "Condoms contraceptive method"
+  },
+  "diaphragm": "Diaphragm",
+  "@diaphragm": {
+    "description": "Diaphragm contraceptive method"
+  },
+  "patch": "Patch",
+  "@patch": {
+    "description": "Patch contraceptive method"
+  },
+  "ring": "Ring",
+  "@ring": {
+    "description": "Ring contraceptive method"
+  },
+  "naturalFamilyPlanning": "Natural Family Planning",
+  "@naturalFamilyPlanning": {
+    "description": "Natural family planning contraceptive method"
+  },
+  "sterilization": "Sterilization",
+  "@sterilization": {
+    "description": "Sterilization contraceptive method"
+  },
+  "emergencyContraception": "Emergency Contraception",
+  "@emergencyContraception": {
+    "description": "Emergency contraception method"
+  },
+  "hormonalMethods": "Hormonal Methods",
+  "@hormonalMethods": {
+    "description": "Hormonal contraceptive methods category"
+  },
+  "barrierMethods": "Barrier Methods",
+  "@barrierMethods": {
+    "description": "Barrier contraceptive methods category"
+  },
+  "naturalMethods": "Natural Methods",
+  "@naturalMethods": {
+    "description": "Natural contraceptive methods category"
+  },
+  "permanentMethods": "Permanent Methods",
+  "@permanentMethods": {
+    "description": "Permanent contraceptive methods category"
+  },
+  "otherMethods": "Other Methods",
+  "@otherMethods": {
+    "description": "Other contraceptive methods category"
+  },
+
+  "sideEffectName": "Side Effect Name",
+  "@sideEffectName": {
+    "description": "Side effect name field"
+  },
+  "severity": "Severity",
+  "@severity": {
+    "description": "Side effect severity"
+  },
+  "frequency": "Frequency",
+  "@frequency": {
+    "description": "Side effect frequency"
+  },
+  "description": "Description",
+  "@description": {
+    "description": "Description field"
+  },
+  "dateReported": "Date Reported",
+  "@dateReported": {
+    "description": "Date when side effect was reported"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+  "optional": "Optional",
+  "@optional": {
+    "description": "Optional field indicator"
+  },
+  "pleaseSelectMethod": "Please select a contraceptive method",
+  "@pleaseSelectMethod": {
+    "description": "Validation message for method selection"
+  },
+  "sideEffectReported": "Side effect reported successfully",
+  "@sideEffectReported": {
+    "description": "Success message for side effect reporting"
+  },
+  "pleaseEnterSideEffect": "Please enter a side effect",
+  "@pleaseEnterSideEffect": {
+    "description": "Validation message for side effect input"
+  },
+  "sideEffectName": "Side Effect",
+  "@sideEffectName": {
+    "description": "Label for side effect name field"
+  },
+  "keepUsing": "Keep Using",
+  "@keepUsing": {
+    "description": "Button text to continue using contraceptive method"
+  },
+  "cancelMethod": "Cancel Method",
+  "@cancelMethod": {
+    "description": "Button text to cancel contraceptive method"
+  },
+  "mild": "Mild",
+  "@mild": {
+    "description": "Mild severity level"
+  },
+  "moderate": "Moderate",
+  "@moderate": {
+    "description": "Moderate severity level"
+  },
+  "severe": "Severe",
+  "@severe": {
+    "description": "Severe severity level"
+  },
+  "rare": "Rare",
+  "@rare": {
+    "description": "Rare frequency"
+  },
+  "occasional": "Occasional",
+  "@occasional": {
+    "description": "Occasional frequency"
+  },
+  "common": "Common",
+  "@common": {
+    "description": "Common frequency"
+  },
+  "frequent": "Frequent",
+  "@frequent": {
+    "description": "Frequent frequency"
+  }
+}
