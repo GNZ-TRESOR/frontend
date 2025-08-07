@@ -13,7 +13,7 @@ class AppConfig {
 
   // Alternative backend URLs for different environments
   static const String localUrl =
-      'http://10.0.2.2:8080/api/v1'; // Android emulator host access
+      'http://192.168.1.70:8080/api/v1'; // Use machine IP for reliable connectivity
   static const String developmentUrl =
       'http://192.168.1.100:8080/api/v1'; // Update with your dev server IP
   static const String productionUrl =
@@ -89,13 +89,14 @@ class AppConfig {
     // Load configuration based on build mode
     if (kDebugMode) {
       debugPrint('🔧 Loading development configuration');
-      // Development specific config
+      debugPrint('🔧 Setting base URL to: $localUrl');
+      EnvironmentConfig.setBaseUrl(localUrl);
     } else if (kProfileMode) {
       debugPrint('🔧 Loading profile configuration');
-      // Profile specific config
+      EnvironmentConfig.setBaseUrl(developmentUrl);
     } else {
       debugPrint('🔧 Loading production configuration');
-      // Production specific config
+      EnvironmentConfig.setBaseUrl(productionUrl);
     }
   }
 

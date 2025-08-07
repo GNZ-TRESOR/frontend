@@ -245,12 +245,9 @@ class HealthFacilitiesNotifier extends StateNotifier<HealthFacilitiesState> {
     );
 
     try {
-      final response = await _apiService.searchHealthFacilities(
-        query: query,
-        type: type,
-        latitude: latitude,
-        longitude: longitude,
-        radius: radius,
+      final response = await _apiService.getHealthFacilities(
+        facilityType: type,
+        // No direct support for query, latitude, longitude, radius in getHealthFacilities
       );
 
       if (response.success && response.data != null) {

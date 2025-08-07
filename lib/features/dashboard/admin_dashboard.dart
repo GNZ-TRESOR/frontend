@@ -4,11 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/api_service.dart';
-import '../../core/widgets/loading_overlay.dart';
-import '../settings/settings_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
 import '../admin/user_management_screen.dart';
+import '../admin/client_management_screen.dart';
 import '../admin/analytics_screen.dart';
 import '../admin/content_management_screen.dart';
 import '../admin/health_facilities_screen.dart';
@@ -69,6 +68,33 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           IconButton(
             onPressed: _loadDashboardStats,
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Dashboard',
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              return PopupMenuButton<String>(
+                icon: const Icon(Icons.account_circle),
+                tooltip: 'Admin Menu',
+                onSelected: (value) {
+                  if (value == 'logout') {
+                    _showLogoutDialog(context, ref);
+                  }
+                },
+                itemBuilder:
+                    (context) => [
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Logout'),
+                          ],
+                        ),
+                      ),
+                    ],
+              );
+            },
           ),
         ],
       ),
@@ -388,6 +414,12 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
         color: AppColors.primary,
       ),
       AdminAction(
+        title: 'Client Management',
+        subtitle: 'Manage client accounts',
+        icon: Icons.person_outline,
+        color: AppColors.success,
+      ),
+      AdminAction(
         title: 'Content Management',
         subtitle: 'Manage educational content',
         icon: Icons.article_outlined,
@@ -512,6 +544,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           MaterialPageRoute(builder: (context) => const UserManagementScreen()),
         );
         break;
+      case 'Client Management':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ClientManagementScreen(),
+          ),
+        );
+        break;
       case 'Content Management':
         Navigator.push(
           context,
@@ -560,6 +600,80 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
         break;
       default:
         _showFeatureDialog(context, action.title);
+    }
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.logout, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Logout'),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to logout from the admin dashboard?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close dialog
+                await _performLogout(ref);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performLogout(WidgetRef ref) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Perform logout
+      await ref.read(authProvider.notifier).logout();
+
+      // Close loading indicator
+      if (mounted) Navigator.of(context).pop();
+
+      // Navigate to login screen and clear navigation stack
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      // Close loading indicator
+      if (mounted) Navigator.of(context).pop();
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logout failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

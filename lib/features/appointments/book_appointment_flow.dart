@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/responsive_layout.dart';
-
 import '../../core/theme/app_colors.dart';
 import '../../core/models/health_facility.dart';
 import '../../core/models/health_worker.dart';
 import '../../core/models/time_slot.dart';
-import '../../core/models/appointment.dart';
-import '../../core/providers/health_provider.dart';
-import '../../core/providers/auth_provider.dart';
 import '../../core/providers/appointment_provider.dart';
 import '../../core/services/health_facility_service.dart';
 import '../../core/services/api_service.dart';
@@ -39,8 +34,8 @@ class _BookAppointmentFlowState extends ConsumerState<BookAppointmentFlow> {
   HealthWorker? _selectedHealthWorker;
   TimeSlot? _selectedTimeSlot;
   String _appointmentType = 'CONSULTATION';
-  String _reason = '';
-  String _notes = '';
+  final String _reason = '';
+  // final String _notes = '';
 
   // Data lists
   List<HealthFacility> _facilities = [];
@@ -501,7 +496,7 @@ class _BookAppointmentFlowState extends ConsumerState<BookAppointmentFlow> {
                       Icon(Icons.star, size: 16, color: Colors.amber),
                       const SizedBox(width: 4),
                       Text(
-                        '${healthWorker.rating!.toStringAsFixed(1)}',
+                        healthWorker.rating!.toStringAsFixed(1),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
@@ -591,13 +586,11 @@ class _BookAppointmentFlowState extends ConsumerState<BookAppointmentFlow> {
         final endTime = timeSlot.endTime;
         String timeDisplay = 'Invalid Time';
 
-        if (startTime != null && endTime != null) {
-          final startFormatted =
-              '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
-          final endFormatted =
-              '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
-          timeDisplay = '$startFormatted - $endFormatted';
-        }
+        final startFormatted =
+            '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
+        final endFormatted =
+            '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
+        timeDisplay = '$startFormatted - $endFormatted';
 
         return GestureDetector(
           onTap:

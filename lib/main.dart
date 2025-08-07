@@ -16,14 +16,59 @@ import 'core/utils/app_constants.dart';
 // Feature imports
 import 'features/splash/splash_screen.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/register_screen.dart';
+import 'features/auth/forgot_password_screen.dart';
 import 'features/dashboard/role_dashboard.dart';
+import 'features/dashboard/admin_dashboard.dart';
 import 'features/dashboard/health_worker_dashboard.dart';
+import 'features/dashboard/client_dashboard.dart';
+import 'features/health_worker/health_worker_main_screen.dart';
+
+// Admin screens
+import 'features/admin/user_management_screen.dart';
+import 'features/admin/client_management_screen.dart';
+import 'features/admin/analytics_screen.dart';
+import 'features/admin/reports_screen.dart';
+import 'features/admin/content_management_screen.dart';
+import 'features/admin/health_facilities_screen.dart' as admin_facilities;
+import 'features/admin/system_settings_screen.dart';
+import 'features/admin/file_management_screen.dart';
+
+// Common feature screens
+import 'features/profile/profile_screen.dart';
+import 'features/settings/settings_screen.dart';
+import 'features/settings/advanced_settings_screen.dart';
+import 'features/notifications/notifications_screen.dart';
+import 'features/messages/messages_tab.dart';
+import 'features/appointments/appointments_screen.dart';
+import 'features/health_records/health_records_screen.dart';
+import 'features/medications/medications_screen.dart';
+import 'features/contraception/contraception_screen.dart';
+import 'features/menstrual_cycle/menstrual_cycle_screen.dart';
+import 'features/sti_testing/sti_testing_screen.dart';
+import 'features/education/education_screen.dart';
+import 'features/support_groups/support_groups_screen.dart';
+import 'features/community_events/community_events_screen.dart';
+import 'features/feedback/feedback_screen.dart';
+import 'features/health_facilities/health_facilities_screen.dart';
+
+// Family Planning screens
+import 'features/pregnancy/pregnancy_planning_screen.dart';
+import 'features/pregnancy/due_date_calculator_screen.dart';
+import 'features/pregnancy/ovulation_calculator_screen.dart';
+import 'features/pregnancy/health_checklist_screen.dart';
+import 'features/pregnancy/partner_management_screen.dart';
+import 'features/pregnancy/partner_decisions_screen.dart';
+
+// AI Chat
+import 'features/ai_chat/screens/chat_assistant_screen.dart';
+
+// Clinic Finder
+import 'features/clinic_finder/clinic_finder_screen.dart';
 
 // Providers
 import 'core/providers/auth_provider.dart';
 import 'core/providers/language_provider.dart';
-import 'core/providers/dynamic_translation_provider.dart';
-import 'core/providers/global_translation_provider.dart';
 import 'core/models/user.dart';
 
 void main() async {
@@ -139,7 +184,60 @@ class UbuzimaFamilyPlanningApp extends ConsumerWidget {
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/dashboard': (context) => const RoleDashboard(),
+
+        // Admin routes
+        '/admin/dashboard': (context) => const AdminDashboard(),
+        '/admin/users': (context) => const UserManagementScreen(),
+        '/admin/clients': (context) => const ClientManagementScreen(),
+        '/admin/analytics': (context) => const AnalyticsScreen(),
+        '/admin/reports': (context) => const ReportsScreen(),
+        '/admin/content': (context) => const ContentManagementScreen(),
+        '/admin/facilities':
+            (context) => const admin_facilities.HealthFacilitiesScreen(),
+        '/admin/settings': (context) => const SystemSettingsScreen(),
+        '/admin/files': (context) => const FileManagementScreen(),
+
+        // Health Worker routes
+        '/health-worker/dashboard': (context) => const HealthWorkerDashboard(),
+        '/health-worker/main': (context) => const HealthWorkerMainScreen(),
+
+        // Client routes
+        '/client/dashboard': (context) => const ClientDashboard(),
+
+        // Common feature routes
+        '/profile': (context) => const ProfileScreen(),
+        '/settings': (context) => const SettingsScreen(),
+        '/advanced-settings': (context) => const AdvancedSettingsScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
+        '/messages': (context) => const MessagesTab(),
+        '/appointments': (context) => const AppointmentsScreen(),
+        '/health-records': (context) => const HealthRecordsScreen(),
+        '/medications': (context) => const MedicationsScreen(),
+        '/contraception': (context) => const ContraceptionScreen(),
+        '/menstrual-cycle': (context) => const MenstrualCycleScreen(),
+        '/sti-testing': (context) => const StiTestingScreen(),
+        '/education': (context) => const EducationScreen(),
+        '/support-groups': (context) => const SupportGroupsScreen(),
+        '/community-events': (context) => const CommunityEventsScreen(),
+        '/feedback': (context) => const FeedbackScreen(),
+        '/health-facilities': (context) => const HealthFacilitiesScreen(),
+
+        // Family Planning routes
+        '/pregnancy-planning': (context) => const PregnancyPlanningScreen(),
+        '/due-date-calculator': (context) => const DueDateCalculatorScreen(),
+        '/ovulation-calculator': (context) => const OvulationCalculatorScreen(),
+        '/health-checklist': (context) => const HealthChecklistScreen(),
+        '/partner-management': (context) => const PartnerManagementScreen(),
+        '/partner-decisions': (context) => const PartnerDecisionsScreen(),
+
+        // AI Chat
+        '/ai-chat': (context) => const ChatAssistantScreen(),
+
+        // Clinic Finder
+        '/clinic-finder': (context) => const ClinicFinderScreen(),
       },
 
       // Error handling
@@ -223,14 +321,15 @@ class DevelopmentHealthWorkerWrapper extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Create a mock health worker user for development
+    // Using ID 2 to match the actual health worker in the database
     final mockUser = User(
-      id: 1,
-      firstName: 'Dr. Development',
-      lastName: 'Worker',
-      email: 'dev.healthworker@ubuzima.rw',
+      id: 2,
+      firstName: 'Dr. Marie',
+      lastName: 'Uwimana',
+      email: 'healthworker@ubuzima.rw',
       role: 'HEALTH_WORKER',
       status: 'ACTIVE',
-      phoneNumber: '+250788123456',
+      phoneNumber: '+250788000002',
       gender: 'FEMALE',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -243,7 +342,7 @@ class DevelopmentHealthWorkerWrapper extends ConsumerWidget {
           return MockAuthNotifier(mockUser);
         }),
       ],
-      child: const HealthWorkerDashboard(),
+      child: const HealthWorkerMainScreen(),
     );
   }
 }

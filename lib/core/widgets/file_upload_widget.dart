@@ -79,22 +79,22 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
           ),
           const SizedBox(height: 12),
         ],
-        
+
         // Upload Area
         _buildUploadArea(),
-        
+
         // Upload Progress
         if (_isUploading) ...[
           const SizedBox(height: 12),
           _buildUploadProgress(),
         ],
-        
+
         // Selected Files
         if (_selectedFiles.isNotEmpty) ...[
           const SizedBox(height: 12),
           _buildSelectedFiles(),
         ],
-        
+
         // Uploaded Files
         if (_uploadedFiles.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -117,9 +117,10 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
             style: BorderStyle.solid,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: _isUploading 
-              ? Colors.grey.withValues(alpha: 0.1)
-              : AppColors.primary.withValues(alpha: 0.05),
+          color:
+              _isUploading
+                  ? Colors.grey.withValues(alpha: 0.1)
+                  : AppColors.primary.withValues(alpha: 0.05),
         ),
         child: Column(
           children: [
@@ -164,10 +165,7 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
         const SizedBox(height: 8),
         Text(
           'Uploading... ${(_uploadProgress * 100).toInt()}%',
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       ],
     );
@@ -186,16 +184,18 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
           ),
         ),
         const SizedBox(height: 8),
-        ..._selectedFiles.map((file) => _buildFileItem(
-          fileName: file.path.split('/').last,
-          fileSize: file.lengthSync(),
-          isSelected: true,
-          onRemove: () {
-            setState(() {
-              _selectedFiles.remove(file);
-            });
-          },
-        )),
+        ..._selectedFiles.map(
+          (file) => _buildFileItem(
+            fileName: file.path.split('/').last,
+            fileSize: file.lengthSync(),
+            isSelected: true,
+            onRemove: () {
+              setState(() {
+                _selectedFiles.remove(file);
+              });
+            },
+          ),
+        ),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -211,11 +211,14 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
             ),
             const SizedBox(width: 12),
             OutlinedButton(
-              onPressed: _isUploading ? null : () {
-                setState(() {
-                  _selectedFiles.clear();
-                });
-              },
+              onPressed:
+                  _isUploading
+                      ? null
+                      : () {
+                        setState(() {
+                          _selectedFiles.clear();
+                        });
+                      },
               child: const Text('Clear'),
             ),
           ],
@@ -237,13 +240,15 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
           ),
         ),
         const SizedBox(height: 8),
-        ..._uploadedFiles.map((file) => _buildFileItem(
-          fileName: file.originalFilename,
-          fileSize: file.size,
-          isUploaded: true,
-          fileUrl: file.url,
-          onRemove: () => _removeUploadedFile(file),
-        )),
+        ..._uploadedFiles.map(
+          (file) => _buildFileItem(
+            fileName: file.originalFilename,
+            fileSize: file.size,
+            isUploaded: true,
+            fileUrl: file.url,
+            onRemove: () => _removeUploadedFile(file),
+          ),
+        ),
       ],
     );
   }
@@ -260,7 +265,10 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isUploaded ? AppColors.success.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+        color:
+            isUploaded
+                ? AppColors.success.withValues(alpha: 0.1)
+                : Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isUploaded ? AppColors.success : Colors.grey,
@@ -320,7 +328,6 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
       case FileUploadType.document:
         return Icons.description;
       case FileUploadType.any:
-      default:
         return Icons.cloud_upload;
     }
   }
@@ -344,7 +351,6 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
       case FileUploadType.document:
         return 'Supported: PDF, DOC, DOCX, TXT (max 10MB)';
       case FileUploadType.any:
-      default:
         return 'All file types supported';
     }
   }
@@ -363,9 +369,9 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
 
   Future<void> _selectImages() async {
     final ImagePicker picker = ImagePicker();
-    
+
     if (widget.allowMultiple) {
-      final List<XFile> images = await picker.pickMultipleImages();
+      final List<XFile> images = await picker.pickMultiImage();
       final files = images.map((image) => File(image.path)).toList();
       _addSelectedFiles(files);
     } else {
@@ -411,7 +417,7 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
 
   void _addSelectedFiles(List<File> files) {
     final validFiles = <File>[];
-    
+
     for (final file in files) {
       final fileTypeStr = FileUploadService.getFileTypeFromExtension(file.path);
       if (FileUploadService.validateEducationFile(file, fileTypeStr)) {
@@ -445,7 +451,7 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
       // TODO: Get FileUploadService instance
       // For now, simulate upload
       await Future.delayed(const Duration(seconds: 2));
-      
+
       // Simulate progress
       for (int i = 0; i <= 100; i += 10) {
         await Future.delayed(const Duration(milliseconds: 100));
@@ -456,7 +462,7 @@ class _FileUploadWidgetState extends State<FileUploadWidget> {
 
       // TODO: Implement actual upload
       final uploadedFiles = <FileUploadResponse>[];
-      
+
       setState(() {
         _uploadedFiles.addAll(uploadedFiles);
         _selectedFiles.clear();

@@ -3,10 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/utils/app_constants.dart';
 import '../auth/login_screen.dart';
 import 'admin_dashboard.dart';
-import 'health_worker_dashboard.dart';
+import '../health_worker/health_worker_main_screen.dart';
 import 'client_dashboard.dart';
 
 /// Role-based dashboard that routes users to appropriate interface based on their role
@@ -31,11 +30,10 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
     try {
       // Add a small delay for smooth transition
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       setState(() {
         _isLoading = false;
       });
-      
     } catch (e) {
       setState(() {
         _error = 'Failed to initialize dashboard: $e';
@@ -53,16 +51,22 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
+      debugPrint('[RoleDashboard] Loading...');
       return _buildLoadingScreen();
     }
 
     if (_error != null) {
+      debugPrint('[RoleDashboard] Error: $_error');
       return _buildErrorScreen();
     }
 
     final authState = ref.watch(authProvider);
+    debugPrint(
+      '[RoleDashboard] isAuthenticated=${authState.isAuthenticated}, user=${authState.user}',
+    );
 
     if (!authState.isAuthenticated) {
+      debugPrint('[RoleDashboard] Not authenticated, navigating to login.');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _navigateToLogin();
       });
@@ -71,16 +75,18 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
 
     final user = authState.user;
     if (user == null) {
+      debugPrint('[RoleDashboard] User is null!');
       return _buildErrorScreen();
     }
 
+    debugPrint('[RoleDashboard] Routing to dashboard for role: ${user.role}');
     // Route to appropriate dashboard based on user role
     switch (user.role.toLowerCase()) {
       case 'admin':
         return const AdminDashboard();
       case 'healthworker':
       case 'health_worker':
-        return const HealthWorkerDashboard();
+        return const HealthWorkerMainScreen();
       case 'client':
       case 'user':
       default:
@@ -110,15 +116,11 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.favorite,
-                size: 50,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.favorite, size: 50, color: Colors.white),
             ),
-            
+
             const SizedBox(height: 30),
-            
+
             // Loading indicator
             SizedBox(
               width: 40,
@@ -128,9 +130,9 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
                 strokeWidth: 3,
               ),
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Loading text
             Text(
               'Loading your dashboard...',
@@ -140,9 +142,9 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            
+
             const SizedBox(height: 10),
-            
+
             Text(
               'Setting up your personalized experience',
               style: TextStyle(
@@ -179,9 +181,9 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
                   color: AppColors.error,
                 ),
               ),
-              
+
               const SizedBox(height: 30),
-              
+
               // Error title
               Text(
                 'Dashboard Error',
@@ -191,21 +193,18 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              
+
               const SizedBox(height: 15),
-              
+
               // Error message
               Text(
                 _error ?? 'An unexpected error occurred',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 40),
-              
+
               // Retry button
               SizedBox(
                 width: double.infinity,
@@ -227,16 +226,13 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
                   ),
                   child: const Text(
                     'Retry',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Logout button
               SizedBox(
                 width: double.infinity,
@@ -255,10 +251,7 @@ class _RoleDashboardState extends ConsumerState<RoleDashboard> {
                   ),
                   child: const Text(
                     'Logout',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -284,13 +277,13 @@ class RoleBasedAccess {
   /// Check if user has health worker access
   static bool isHealthWorker(String? role) {
     return role?.toLowerCase() == healthWorkerRole.toLowerCase() ||
-           role?.toLowerCase() == 'health_worker';
+        role?.toLowerCase() == 'health_worker';
   }
 
   /// Check if user has client access
   static bool isClient(String? role) {
     return role?.toLowerCase() == clientRole.toLowerCase() ||
-           role?.toLowerCase() == 'user';
+        role?.toLowerCase() == 'user';
   }
 
   /// Get available features based on user role
@@ -352,7 +345,7 @@ class RoleBasedAccess {
   /// Get welcome message based on role
   static String getWelcomeMessage(String? role, String? userName) {
     final name = userName ?? 'User';
-    
+
     if (isAdmin(role)) {
       return 'Welcome back, $name! Manage the Ubuzima platform.';
     } else if (isHealthWorker(role)) {

@@ -59,7 +59,9 @@ class HealthFacility {
         status:
             json['isActive'] == true
                 ? 'ACTIVE'
-                : json['status'] ?? 'ACTIVE', // Handle isActive field
+                : json['isActive'] == false
+                ? 'INACTIVE'
+                : json['status'] ?? 'ACTIVE', // Handle isActive field properly
         services: _parseServices(
           json['servicesOffered'] ?? json['services'],
         ), // Handle both field names
@@ -149,6 +151,7 @@ class HealthFacility {
       'latitude': latitude,
       'longitude': longitude,
       'status': status,
+      'isActive': isActive, // Include isActive field for API calls
       'services': services,
       'operatingHours': operatingHours,
       'description': description,

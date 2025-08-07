@@ -6,14 +6,10 @@ class ValidationUtils {
   );
 
   /// Phone validation regex (allows international formats)
-  static final RegExp _phoneRegex = RegExp(
-    r'^\+?[\d\s\-\(\)\.]{10,15}$',
-  );
+  static final RegExp _phoneRegex = RegExp(r'^\+?[\d\s\-\(\)\.]{10,15}$');
 
   /// Name validation regex (letters, spaces, hyphens, apostrophes)
-  static final RegExp _nameRegex = RegExp(
-    r'^[a-zA-Z\s\-\'\.]+$',
-  );
+  static final RegExp _nameRegex = RegExp(r"^[a-zA-Z\s\-'\.]+$");
 
   /// Validate email address
   static String? validateEmail(String? value, {bool required = true}) {
@@ -22,7 +18,7 @@ class ValidationUtils {
     }
 
     final email = value.trim();
-    
+
     if (!_emailRegex.hasMatch(email)) {
       return 'Please enter a valid email address';
     }
@@ -41,10 +37,10 @@ class ValidationUtils {
     }
 
     final phone = value.trim();
-    
+
     // Remove all non-digit characters for length validation
     final digitsOnly = phone.replaceAll(RegExp(r'[^\d]'), '');
-    
+
     if (digitsOnly.length < 10) {
       return 'Phone number must be at least 10 digits';
     }
@@ -61,7 +57,8 @@ class ValidationUtils {
   }
 
   /// Validate name (person name, plan name, etc.)
-  static String? validateName(String? value, {
+  static String? validateName(
+    String? value, {
     bool required = true,
     int minLength = 2,
     int maxLength = 100,
@@ -89,7 +86,8 @@ class ValidationUtils {
   }
 
   /// Validate text field with length constraints
-  static String? validateText(String? value, {
+  static String? validateText(
+    String? value, {
     bool required = false,
     int minLength = 0,
     int maxLength = 1000,
@@ -113,7 +111,8 @@ class ValidationUtils {
   }
 
   /// Validate password
-  static String? validatePassword(String? value, {
+  static String? validatePassword(
+    String? value, {
     bool required = true,
     int minLength = 8,
     bool requireUppercase = true,
@@ -141,7 +140,8 @@ class ValidationUtils {
       return 'Password must contain at least one number';
     }
 
-    if (requireSpecialChars && !RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
+    if (requireSpecialChars &&
+        !RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
       return 'Password must contain at least one special character';
     }
 
@@ -149,7 +149,8 @@ class ValidationUtils {
   }
 
   /// Validate date is not in the past
-  static String? validateFutureDate(DateTime? value, {
+  static String? validateFutureDate(
+    DateTime? value, {
     bool required = false,
     String fieldName = 'Date',
   }) {
@@ -166,7 +167,8 @@ class ValidationUtils {
   }
 
   /// Validate date is within a range
-  static String? validateDateRange(DateTime? value, {
+  static String? validateDateRange(
+    DateTime? value, {
     DateTime? minDate,
     DateTime? maxDate,
     bool required = false,
@@ -194,7 +196,7 @@ class ValidationUtils {
     }
 
     final url = value.trim();
-    
+
     if (!RegExp(r'^https?:\/\/.+').hasMatch(url)) {
       return 'Please enter a valid URL starting with http:// or https://';
     }
@@ -203,7 +205,8 @@ class ValidationUtils {
   }
 
   /// Validate numeric value
-  static String? validateNumber(String? value, {
+  static String? validateNumber(
+    String? value, {
     bool required = false,
     double? min,
     double? max,
@@ -230,7 +233,9 @@ class ValidationUtils {
   }
 
   /// Validate that two fields match (e.g., password confirmation)
-  static String? validateMatch(String? value, String? matchValue, {
+  static String? validateMatch(
+    String? value,
+    String? matchValue, {
     String fieldName = 'Field',
     String matchFieldName = 'matching field',
   }) {
@@ -248,9 +253,9 @@ class ValidationUtils {
   /// Check if phone is valid (without error message)
   static bool isValidPhone(String phone) {
     final digitsOnly = phone.replaceAll(RegExp(r'[^\d]'), '');
-    return digitsOnly.length >= 10 && 
-           digitsOnly.length <= 15 && 
-           _phoneRegex.hasMatch(phone.trim());
+    return digitsOnly.length >= 10 &&
+        digitsOnly.length <= 15 &&
+        _phoneRegex.hasMatch(phone.trim());
   }
 
   /// Format date for display in error messages
@@ -260,9 +265,7 @@ class ValidationUtils {
 
   /// Sanitize text input (remove potentially harmful characters)
   static String sanitizeText(String text) {
-    return text
-        .replaceAll(RegExp(r'[<>{}[\]\\|`~]'), '')
-        .trim();
+    return text.replaceAll(RegExp(r'[<>{}[\]\\|`~]'), '').trim();
   }
 
   /// Validate invitation code format
@@ -272,7 +275,7 @@ class ValidationUtils {
     }
 
     final code = value.trim().toUpperCase();
-    
+
     if (code.length != 8) {
       return 'Invitation code must be 8 characters long';
     }

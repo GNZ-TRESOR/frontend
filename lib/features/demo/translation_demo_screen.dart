@@ -22,18 +22,13 @@ class TranslationDemoScreen extends ConsumerWidget {
         actions: [
           PopupMenuButton<String>(
             onSelected: (languageCode) {
-              languageNotifier.setLanguage(languageCode);
+              languageNotifier.changeLanguage(languageCode);
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'en',
-                child: Text('English'),
-              ),
-              const PopupMenuItem(
-                value: 'fr',
-                child: Text('Français'),
-              ),
-            ],
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(value: 'en', child: Text('English')),
+                  const PopupMenuItem(value: 'fr', child: Text('Français')),
+                ],
           ),
         ],
       ),
@@ -61,7 +56,7 @@ class TranslationDemoScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    languageState.currentLocale.languageCode.toUpperCase(),
+                    languageState.locale.languageCode.toUpperCase(),
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -76,10 +71,7 @@ class TranslationDemoScreen extends ConsumerWidget {
 
             // Basic UI Elements
             'Basic UI Elements'.tr(
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -102,10 +94,7 @@ class TranslationDemoScreen extends ConsumerWidget {
 
             // Health-specific terms
             'Health Terms'.tr(
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Column(
@@ -125,10 +114,7 @@ class TranslationDemoScreen extends ConsumerWidget {
 
             // Appointment types
             'Appointment Types'.tr(
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Column(
@@ -150,10 +136,7 @@ class TranslationDemoScreen extends ConsumerWidget {
 
             // Status indicators
             'Status Indicators'.tr(
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -190,9 +173,11 @@ class TranslationDemoScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  'Use the menu button in the top-right corner to switch between English and French. All text should automatically translate.'.tr(),
+                  'Use the menu button in the top-right corner to switch between English and French. All text should automatically translate.'
+                      .tr(),
                   const SizedBox(height: 8),
-                  'This demonstrates how the entire app can be automatically translated without changing any existing code.'.tr(),
+                  'This demonstrates how the entire app can be automatically translated without changing any existing code.'
+                      .tr(),
                 ],
               ),
             ),
@@ -220,15 +205,8 @@ class TranslationDemoScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Expanded(
-              child: text.tr(
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-            Icon(
-              Icons.translate,
-              color: AppColors.primary,
-            ),
+            Expanded(child: text.tr(style: const TextStyle(fontSize: 16))),
+            Icon(Icons.translate, color: AppColors.primary),
           ],
         ),
       ),

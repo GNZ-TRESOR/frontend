@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -48,15 +49,41 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final token = await StorageService.getAuthToken();
       if (token != null) {
         _apiService.setAuthToken(token);
-        await _loadUserProfile();
+        try {
+          await _loadUserProfile();
+        } catch (e) {
+          // If backend profile call fails, try to load user from local storage
+          final localUserData = StorageService.getUserData();
+          if (localUserData != null) {
+            final user = User.fromJson(localUserData);
+            state = state.copyWith(
+              isAuthenticated: true,
+              isLoading: false,
+              user: user,
+            );
+            debugPrint(
+              '[AuthNotifier] _checkAuthStatus fallback: isAuthenticated={state.isAuthenticated}, user={state.user}',
+            );
+          } else {
+            state = state.copyWith(isLoading: false);
+            debugPrint(
+              '[AuthNotifier] _checkAuthStatus fallback: no user found',
+            );
+          }
+        }
       } else {
         state = state.copyWith(isLoading: false);
+        debugPrint('[AuthNotifier] _checkAuthStatus: no token');
       }
+      debugPrint(
+        '[AuthNotifier] _checkAuthStatus: isAuthenticated={state.isAuthenticated}, user={state.user}',
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to check authentication status',
       );
+      debugPrint('[AuthNotifier] _checkAuthStatus: error $e');
     }
   }
 
@@ -68,9 +95,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final response = await _apiService.login(email, password);
 
       if (response.success && response.data != null) {
-        final authData = response.data as Map<String, dynamic>;
+        // Safely convert response.data to Map<String, dynamic>
+        final authData = Map<String, dynamic>.from(response.data as Map);
         final token = authData['accessToken'] as String;
-        final userData = authData['user'] as Map<String, dynamic>;
+
+        // Safely convert user data to Map<String, dynamic>
+        final userData = Map<String, dynamic>.from(authData['user'] as Map);
 
         // Clear any existing tokens first
         await StorageService.clearAuthToken();
@@ -83,22 +113,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Create user object
         final user = User.fromJson(userData);
 
+        // Store user data for downstream features
+        await StorageService.setUserData(user.toJson());
+
         state = state.copyWith(
           isAuthenticated: true,
           isLoading: false,
           user: user,
         );
-
+        debugPrint(
+          '[AuthNotifier] login: isAuthenticated=${state.isAuthenticated}, user=${state.user}',
+        );
         return true;
       } else {
         state = state.copyWith(
           isLoading: false,
           error: response.message ?? 'Login failed',
         );
+        debugPrint('[AuthNotifier] login: failed, error=${state.error}');
         return false;
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Login failed: $e');
+      debugPrint('[AuthNotifier] login: exception $e');
       return false;
     }
   }
@@ -152,7 +189,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final response = await _apiService.getUserProfile();
 
       if (response.success && response.data != null) {
-        final user = User.fromJson(response.data as Map<String, dynamic>);
+        final userData = Map<String, dynamic>.from(response.data as Map);
+        final user = User.fromJson(userData);
         state = state.copyWith(
           isAuthenticated: true,
           isLoading: false,
@@ -175,7 +213,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final response = await _apiService.updateUserProfile(userData);
 
       if (response.success && response.data != null) {
-        final user = User.fromJson(response.data as Map<String, dynamic>);
+        final userData = Map<String, dynamic>.from(response.data as Map);
+        final user = User.fromJson(userData);
         state = state.copyWith(isLoading: false, user: user);
         return true;
       } else {

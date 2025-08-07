@@ -59,11 +59,7 @@ class ContraceptionService {
             userMethods.where((method) => method.isActive == true).toList();
         if (activeMethods.isNotEmpty) {
           // Return the most recently created active method
-          activeMethods.sort(
-            (a, b) => (b.createdAt ?? DateTime.now()).compareTo(
-              a.createdAt ?? DateTime.now(),
-            ),
-          );
+          activeMethods.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return activeMethods.first;
         }
       } catch (fallbackError) {
@@ -152,7 +148,7 @@ class ContraceptionService {
           'type': method.type.name.toUpperCase(),
           'name': method.name,
           'description': method.description,
-          'startDate': method.startDate.toIso8601String().split('T')[0],
+          'startDate': method.startDate?.toIso8601String().split('T')[0],
           'endDate': method.endDate?.toIso8601String().split('T')[0],
           'effectiveness': method.effectiveness,
           'instructions': method.instructions,

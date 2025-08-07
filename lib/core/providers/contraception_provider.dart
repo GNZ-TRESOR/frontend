@@ -1,401 +1,394 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../models/contraception_method.dart';
-import '../services/contraception_service.dart';
+import '../models/side_effect_report.dart';
+import '../services/api_service.dart';
 
-/// Contraception State
+/// Contraception state
 class ContraceptionState {
+  final List<ContraceptionMethod> availableMethods;
   final List<ContraceptionMethod> userMethods;
-  final ContraceptionMethod? activeMethod;
-  final List<String> contraceptionTypes;
-  final Map<String, List<ContraceptionMethod>>
-  allUsersAndMethods; // For health workers
+  final List<SideEffectReport> sideEffects;
   final bool isLoading;
   final String? error;
 
-  const ContraceptionState({
+  ContraceptionState({
+    this.availableMethods = const [],
     this.userMethods = const [],
-    this.activeMethod,
-    this.contraceptionTypes = const [],
-    this.allUsersAndMethods = const {},
+    this.sideEffects = const [],
     this.isLoading = false,
     this.error,
   });
 
   ContraceptionState copyWith({
+    List<ContraceptionMethod>? availableMethods,
     List<ContraceptionMethod>? userMethods,
-    ContraceptionMethod? activeMethod,
-    List<String>? contraceptionTypes,
-    Map<String, List<ContraceptionMethod>>? allUsersAndMethods,
+    List<SideEffectReport>? sideEffects,
     bool? isLoading,
     String? error,
   }) {
     return ContraceptionState(
+      availableMethods: availableMethods ?? this.availableMethods,
       userMethods: userMethods ?? this.userMethods,
-      activeMethod: activeMethod ?? this.activeMethod,
-      contraceptionTypes: contraceptionTypes ?? this.contraceptionTypes,
-      allUsersAndMethods: allUsersAndMethods ?? this.allUsersAndMethods,
+      sideEffects: sideEffects ?? this.sideEffects,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
   }
 
-  /// Get active user methods
+  /// Get active contraception methods
   List<ContraceptionMethod> get activeMethods {
     return userMethods.where((method) => method.isActive == true).toList();
   }
-
-  /// Get inactive user methods
-  List<ContraceptionMethod> get inactiveMethods {
-    return userMethods.where((method) => method.isActive != true).toList();
-  }
 }
 
-/// Contraception Notifier
+/// Contraception provider using Riverpod
 class ContraceptionNotifier extends StateNotifier<ContraceptionState> {
-  final ContraceptionService _contraceptionService;
+  ContraceptionNotifier() : super(ContraceptionState());
 
-  ContraceptionNotifier(this._contraceptionService)
-    : super(const ContraceptionState());
+  final ApiService _apiService = ApiService.instance;
 
-  /// Initialize contraception data for users
-  Future<void> initializeForUser({required int userId}) async {
+  /// Load available contraception methods
+  Future<void> loadContraceptionMethods() async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Load user methods
-      final userMethods = await _contraceptionService.getUserMethods(
-        userId: userId,
-      );
+      final response = await _apiService.getAvailableContraceptionMethods();
 
-      // Load active method
-      final activeMethod = await _contraceptionService.getActiveMethod(
-        userId: userId,
-      );
+      if (response.success && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final methods =
+            (data['methods'] as List<dynamic>)
+                .map(
+                  (json) => ContraceptionMethod.fromJson(
+                    json as Map<String, dynamic>,
+                  ),
+                )
+                .toList();
 
-      // Load contraception types
-      final contraceptionTypes =
-          await _contraceptionService.getContraceptionTypes();
-
-      state = state.copyWith(
-        userMethods: userMethods,
-        activeMethod: activeMethod,
-        contraceptionTypes: contraceptionTypes,
-        isLoading: false,
-      );
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
-
-  /// Initialize contraception data for health workers
-  Future<void> initializeForHealthWorker() async {
-    state = state.copyWith(isLoading: true, error: null);
-
-    try {
-      // Load all users and their methods
-      final allUsersAndMethods =
-          await _contraceptionService.getAllUsersAndMethods();
-
-      // Load contraception types
-      final contraceptionTypes =
-          await _contraceptionService.getContraceptionTypes();
-
-      state = state.copyWith(
-        allUsersAndMethods: allUsersAndMethods,
-        contraceptionTypes: contraceptionTypes,
-        isLoading: false,
-      );
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
-
-  /// Refresh data
-  Future<void> refresh({int? userId, bool isHealthWorker = false}) async {
-    if (isHealthWorker) {
-      await initializeForHealthWorker();
-    } else if (userId != null) {
-      await initializeForUser(userId: userId);
-    }
-  }
-
-  /// Prescribe contraception method (Health Worker)
-  Future<bool> prescribeMethod({
-    required int userId,
-    required ContraceptionType type,
-    required String name,
-    String? description,
-    DateTime? startDate,
-    DateTime? endDate,
-    double? effectiveness,
-    String? instructions,
-    String? prescribedBy,
-    DateTime? nextAppointment,
-  }) async {
-    try {
-      state = state.copyWith(isLoading: true, error: null);
-
-      final success = await _contraceptionService.prescribeMethod(
-        userId: userId,
-        type: type,
-        name: name,
-        description: description,
-        startDate: startDate,
-        endDate: endDate,
-        effectiveness: effectiveness,
-        instructions: instructions,
-        prescribedBy: prescribedBy,
-        nextAppointment: nextAppointment,
-      );
-
-      if (success) {
-        // Refresh data to show the new method
-        await refresh(isHealthWorker: true);
+        state = state.copyWith(availableMethods: methods, isLoading: false);
       } else {
         state = state.copyWith(
-          error: 'Failed to prescribe contraception method',
           isLoading: false,
+          error: response.message ?? 'Failed to load contraception methods',
         );
       }
-
-      return success;
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load contraception methods: $e',
+      );
+    }
+  }
+
+  /// Load user's contraception methods
+  Future<void> loadUserContraception() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final response = await _apiService.getUserContraception();
+
+      if (response.success && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final methods =
+            (data['methods'] as List<dynamic>)
+                .map(
+                  (json) => ContraceptionMethod.fromJson(
+                    json as Map<String, dynamic>,
+                  ),
+                )
+                .toList();
+
+        state = state.copyWith(userMethods: methods, isLoading: false);
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: response.message ?? 'Failed to load user contraception',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load user contraception: $e',
+      );
+    }
+  }
+
+  /// Load side effects
+  Future<void> loadSideEffects() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final response = await _apiService.getUserSideEffects(
+        1,
+      ); // Add userId parameter
+
+      if (response.success && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final effects =
+            (data['sideEffects'] as List<dynamic>)
+                .map(
+                  (json) =>
+                      SideEffectReport.fromJson(json as Map<String, dynamic>),
+                )
+                .toList();
+
+        state = state.copyWith(sideEffects: effects, isLoading: false);
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: response.message ?? 'Failed to load side effects',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load side effects: $e',
+      );
+    }
+  }
+
+  /// Initialize for health worker
+  Future<void> initializeForHealthWorker() async {
+    await loadContraceptionMethods();
+    await loadSideEffects();
+  }
+
+  /// Initialize for user
+  Future<void> initializeForUser({required int userId}) async {
+    await loadUserContraception();
+    await loadSideEffects();
+  }
+
+  /// Add contraception method
+  Future<void> addMethod(ContraceptionMethod method) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final response = await _apiService.createContraceptionRecord({
+        'name': method.name,
+        'type': method.type,
+        'startDate':
+            method.startDate?.toIso8601String() ??
+            DateTime.now().toIso8601String(),
+        'isActive': method.isActive ?? true,
+      });
+
+      if (response.success) {
+        await loadUserContraception();
+        await loadContraceptionMethods();
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: response.message ?? 'Failed to add contraception method',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to add contraception method: $e',
+      );
     }
   }
 
   /// Update contraception method
-  Future<bool> updateMethod(
-    int methodId,
-    ContraceptionMethod method, {
-    int? userId,
-    bool isHealthWorker = false,
-  }) async {
+  Future<void> updateMethod(ContraceptionMethod method) async {
+    state = state.copyWith(isLoading: true, error: null);
+
     try {
-      state = state.copyWith(isLoading: true, error: null);
+      final response = await _apiService.updateContraceptionRecord(method.id, {
+        'name': method.name,
+        'type': method.type,
+        'startDate':
+            method.startDate?.toIso8601String() ??
+            DateTime.now().toIso8601String(),
+        'isActive': method.isActive ?? true,
+      });
 
-      final success = await _contraceptionService.updateMethod(
-        methodId,
-        method,
-      );
-
-      if (success) {
-        // Refresh data to show the updated method
-        await refresh(userId: userId, isHealthWorker: isHealthWorker);
+      if (response.success) {
+        await loadUserContraception();
+        await loadContraceptionMethods();
       } else {
         state = state.copyWith(
-          error: 'Failed to update contraception method',
           isLoading: false,
+          error: response.message ?? 'Failed to update contraception method',
         );
       }
-
-      return success;
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to update contraception method: $e',
+      );
     }
   }
 
-  /// Deactivate contraception method
-  Future<bool> deactivateMethod(
-    int methodId, {
-    int? userId,
-    bool isHealthWorker = false,
-  }) async {
+  /// Prescribe method for health worker
+  Future<void> prescribeMethod(int methodId, int userId) async {
+    state = state.copyWith(isLoading: true, error: null);
+
     try {
-      state = state.copyWith(isLoading: true, error: null);
+      final response = await _apiService.createContraceptionRecord({
+        'methodId': methodId,
+        'userId': userId,
+        'startDate': DateTime.now().toIso8601String(),
+        'isActive': true,
+      });
 
-      final success = await _contraceptionService.deactivateMethod(methodId);
-
-      if (success) {
-        // Refresh data to update the method status
-        await refresh(userId: userId, isHealthWorker: isHealthWorker);
+      if (response.success) {
+        await loadContraceptionMethods();
       } else {
         state = state.copyWith(
-          error: 'Failed to deactivate contraception method',
           isLoading: false,
+          error: response.message ?? 'Failed to prescribe contraception method',
         );
       }
-
-      return success;
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to prescribe contraception method: $e',
+      );
     }
   }
 
-  /// Add side effect to contraception method
-  Future<bool> addSideEffect(
-    int methodId,
-    String sideEffect, {
-    int? userId,
-    bool isHealthWorker = false,
-  }) async {
+  /// Add side effect
+  Future<void> addSideEffect(SideEffectReport sideEffect) async {
+    state = state.copyWith(isLoading: true, error: null);
+
     try {
-      state = state.copyWith(isLoading: true, error: null);
+      final response = await _apiService.createSideEffectReport({
+        'contraceptionMethodId': sideEffect.contraceptionMethodId,
+        'symptom': sideEffect.symptom,
+        'severity': sideEffect.severity,
+        'notes': sideEffect.notes,
+        'reportedDate': sideEffect.reportedDate.toIso8601String(),
+      });
 
-      final success = await _contraceptionService.addSideEffect(
-        methodId,
-        sideEffect,
-      );
-
-      if (success) {
-        // Refresh data to show the new side effect
-        await refresh(userId: userId, isHealthWorker: isHealthWorker);
+      if (response.success) {
+        await loadSideEffects();
       } else {
         state = state.copyWith(
-          error: 'Failed to add side effect',
           isLoading: false,
+          error: response.message ?? 'Failed to add side effect',
         );
       }
-
-      return success;
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to add side effect: $e',
+      );
     }
+  }
+
+  /// Get all users (for health worker)
+  Future<void> getAllUsers() async {
+    // This would typically load all users for health worker view
+    // For now, we'll just reload the methods
+    await loadContraceptionMethods();
+  }
+
+  /// Toggle method active state
+  Future<void> toggleMethodActiveState({
+    required int methodId,
+    required int userId,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final response = await _apiService.updateContraceptionRecord(methodId, {
+        'isActive': false, // Toggle to inactive
+      });
+
+      if (response.success) {
+        await loadUserContraception();
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: response.message ?? 'Failed to toggle method state',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to toggle method state: $e',
+      );
+    }
+  }
+
+  /// Delete method
+  Future<void> deleteMethod({
+    required int methodId,
+    required int userId,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final response = await _apiService.deleteContraceptionRecord(methodId);
+
+      if (response.success) {
+        await loadUserContraception();
+        await loadContraceptionMethods();
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: response.message ?? 'Failed to delete method',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to delete method: $e',
+      );
+    }
+  }
+
+  /// Report side effect
+  Future<void> reportSideEffect(SideEffectReport sideEffect) async {
+    await addSideEffect(sideEffect);
   }
 
   /// Clear error
   void clearError() {
     state = state.copyWith(error: null);
   }
-
-  /// Get all users for health worker dropdown
-  Future<List<Map<String, dynamic>>> getAllUsers() async {
-    try {
-      return await _contraceptionService.getAllUsers();
-    } catch (e) {
-      throw Exception('Failed to load users: $e');
-    }
-  }
-
-  // ==================== USER SELF-MANAGEMENT METHODS ====================
-
-  /// User adds their own contraception method
-  Future<bool> addMethod({
-    required int userId,
-    required ContraceptionType type,
-    required String name,
-    String? description,
-    DateTime? startDate,
-    DateTime? endDate,
-    double? effectiveness,
-    String? instructions,
-    String? prescribedBy,
-    DateTime? nextAppointment,
-    bool? isActive,
-  }) async {
-    try {
-      state = state.copyWith(isLoading: true, error: null);
-
-      final success = await _contraceptionService.addMethod(
-        userId: userId,
-        type: type,
-        name: name,
-        description: description,
-        startDate: startDate,
-        endDate: endDate,
-        effectiveness: effectiveness,
-        instructions: instructions,
-        prescribedBy: prescribedBy,
-        nextAppointment: nextAppointment,
-        isActive: isActive,
-      );
-
-      if (success) {
-        // Refresh user methods after successful addition
-        await initializeForUser(userId: userId);
-      }
-
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
-    }
-  }
-
-  /// User toggles active state of their contraception method
-  Future<bool> toggleMethodActiveState({
-    required int methodId,
-    required int userId,
-  }) async {
-    try {
-      state = state.copyWith(isLoading: true, error: null);
-
-      final success = await _contraceptionService.toggleMethodActiveState(
-        methodId: methodId,
-        userId: userId,
-      );
-
-      if (success) {
-        // Refresh user methods after successful toggle
-        await initializeForUser(userId: userId);
-      }
-
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
-    }
-  }
-
-  /// User deletes their contraception method (only if not active)
-  Future<bool> deleteMethod({
-    required int methodId,
-    required int userId,
-  }) async {
-    try {
-      state = state.copyWith(isLoading: true, error: null);
-
-      final success = await _contraceptionService.deleteMethod(
-        methodId: methodId,
-        userId: userId,
-      );
-
-      if (success) {
-        // Refresh user methods after successful deletion
-        await initializeForUser(userId: userId);
-      }
-
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-      return false;
-    }
-  }
 }
 
-/// Contraception Provider
+/// Contraception provider
 final contraceptionProvider =
     StateNotifierProvider<ContraceptionNotifier, ContraceptionState>((ref) {
-      final contraceptionService = ref.watch(contraceptionServiceProvider);
-      return ContraceptionNotifier(contraceptionService);
+      return ContraceptionNotifier();
     });
 
-/// Specific providers for different data
-final userMethodsProvider = Provider<List<ContraceptionMethod>>((ref) {
-  final contraceptionState = ref.watch(contraceptionProvider);
-  return contraceptionState.userMethods;
-});
-
-final activeMethodProvider = Provider<ContraceptionMethod?>((ref) {
-  final contraceptionState = ref.watch(contraceptionProvider);
-  return contraceptionState.activeMethod;
-});
-
-final contraceptionTypesProvider = Provider<List<String>>((ref) {
-  final contraceptionState = ref.watch(contraceptionProvider);
-  return contraceptionState.contraceptionTypes;
-});
-
-final allUsersAndMethodsProvider =
-    Provider<Map<String, List<ContraceptionMethod>>>((ref) {
-      final contraceptionState = ref.watch(contraceptionProvider);
-      return contraceptionState.allUsersAndMethods;
+/// Available contraception methods provider
+final availableContraceptionMethodsProvider =
+    Provider<AsyncValue<List<ContraceptionMethod>>>((ref) {
+      final state = ref.watch(contraceptionProvider);
+      return AsyncValue.data(state.availableMethods);
     });
+
+/// User contraception methods provider
+final userContraceptionProvider =
+    Provider<AsyncValue<List<ContraceptionMethod>>>((ref) {
+      final state = ref.watch(contraceptionProvider);
+      return AsyncValue.data(state.userMethods);
+    });
+
+/// Side effects provider
+final sideEffectsProvider = Provider<AsyncValue<List<SideEffectReport>>>((ref) {
+  final state = ref.watch(contraceptionProvider);
+  return AsyncValue.data(state.sideEffects);
+});
+
+/// Active contraception method provider
+final activeContraceptionMethodProvider = Provider<ContraceptionMethod?>((ref) {
+  final userMethods = ref.watch(userContraceptionProvider);
+  return userMethods.when(
+    data: (methods) {
+      try {
+        return methods.firstWhere((method) => method.isActive == true);
+      } catch (e) {
+        return null;
+      }
+    },
+    loading: () => null,
+    error: (_, __) => null,
+  );
+});

@@ -10,6 +10,7 @@ import '../../core/widgets/loading_overlay.dart';
 import '../../core/widgets/language_selector.dart';
 import '../dashboard/role_dashboard.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 /// Professional login screen for Family Planning Platform
 class LoginScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with TickerProviderStateMixin {
+  bool _hasNavigated = false;
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -82,10 +84,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         .read(authProvider.notifier)
         .login(email, password);
 
+    // Check both API success and auth state
     if (success && mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const RoleDashboard()),
-      );
+      final authState = ref.read(authProvider);
+      if (authState.isAuthenticated && authState.user != null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const RoleDashboard()),
+        );
+      }
     }
   }
 
@@ -98,6 +104,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    debugPrint(
+      '[LoginScreen] build: isAuthenticated=${authState.isAuthenticated}, user=${authState.user}',
+    );
+
+    // Listen for authentication and navigate after login
+    if (!_hasNavigated && authState.isAuthenticated && authState.user != null) {
+      debugPrint('[LoginScreen] Navigating to RoleDashboard...');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _hasNavigated = true;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const RoleDashboard()),
+        );
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -324,9 +344,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget _buildForgotPassword() {
     return TextButton(
       onPressed: () {
-        // TODO: Implement forgot password
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Forgot password feature coming soon')),
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
         );
       },
       child: Text(

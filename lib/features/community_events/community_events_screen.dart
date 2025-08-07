@@ -49,11 +49,30 @@ class _CommunityEventsScreenState extends ConsumerState<CommunityEventsScreen>
 
     try {
       // Load all community events
-      final events =
-          await ref.read(healthProvider.notifier).getCommunityEvents();
+      final eventsResponse = await ApiService.instance.getCommunityEvents();
+
+      List<CommunityEvent> events = [];
+      if (eventsResponse.success && eventsResponse.data != null) {
+        final eventsData =
+            eventsResponse.data['events'] as List<dynamic>? ?? [];
+        events =
+            eventsData
+                .map((e) => CommunityEvent.fromJson(e as Map<String, dynamic>))
+                .toList();
+      }
 
       // Load user's registered events
-      final myEvents = await ref.read(healthProvider.notifier).getMyEvents();
+      final myEventsResponse = await ApiService.instance.getMyEvents();
+
+      List<CommunityEvent> myEvents = [];
+      if (myEventsResponse.success && myEventsResponse.data != null) {
+        final myEventsData =
+            myEventsResponse.data['events'] as List<dynamic>? ?? [];
+        myEvents =
+            myEventsData
+                .map((e) => CommunityEvent.fromJson(e as Map<String, dynamic>))
+                .toList();
+      }
 
       setState(() {
         _allEvents = events;

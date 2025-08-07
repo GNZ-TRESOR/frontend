@@ -8,7 +8,7 @@ import '../settings/settings_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../ai_chat/screens/chat_assistant_screen.dart';
 import '../profile/profile_screen.dart';
-import '../health_worker/assigned_clients_screen.dart';
+// import '../health_worker/assigned_clients_screen.dart'; // Removed - rebuilding health worker interface
 
 /// Professional Health Worker Dashboard for Family Planning Platform
 class HealthWorkerDashboard extends ConsumerStatefulWidget {
@@ -22,6 +22,7 @@ class HealthWorkerDashboard extends ConsumerStatefulWidget {
 class _HealthWorkerDashboardState extends ConsumerState<HealthWorkerDashboard> {
   bool _isLoading = false;
   Map<String, dynamic>? _dashboardStats;
+  List<dynamic> _todayAppointments = [];
   String? _error;
 
   @override
@@ -40,22 +41,44 @@ class _HealthWorkerDashboardState extends ConsumerState<HealthWorkerDashboard> {
     });
 
     try {
-      final response = await ApiService.instance.getHealthWorkerDashboardStats(
-        user!.id!,
-      );
+      // Load dashboard stats and today's appointments in parallel
+      final results = await Future.wait([
+        ApiService.instance.getHealthWorkerDashboardStats(user!.id!),
+        ApiService.instance.getHealthWorkerAppointments(
+          user.id!,
+          date: DateTime.now().toIso8601String().split('T')[0], // Today's date
+        ),
+      ]);
 
-      if (response.success && response.data != null) {
+      final statsResponse = results[0];
+      final appointmentsResponse = results[1];
+
+      print('Health Worker Dashboard Response: $statsResponse');
+      print('Appointments Response: $appointmentsResponse');
+
+      if (statsResponse.success && statsResponse.data != null) {
         setState(() {
-          _dashboardStats = response.data;
+          _dashboardStats = statsResponse.data;
+
+          // Extract today's appointments
+          if (appointmentsResponse.success &&
+              appointmentsResponse.data != null) {
+            _todayAppointments =
+                appointmentsResponse.data['appointments'] ?? [];
+          }
+
           _isLoading = false;
         });
+        print('Dashboard stats set successfully: $_dashboardStats');
+        print('Today\'s appointments loaded: ${_todayAppointments.length}');
       } else {
         setState(() {
-          _error = response.message ?? 'Failed to load dashboard data';
+          _error = statsResponse.message ?? 'Failed to load dashboard data';
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('Exception in _loadDashboardData: $e');
       setState(() {
         _error = 'Error loading dashboard: $e';
         _isLoading = false;
@@ -255,33 +278,10 @@ class _HealthWorkerDashboardState extends ConsumerState<HealthWorkerDashboard> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
-          child: Column(
-            children: [
-              _buildScheduleItem(
-                '09:00 AM',
-                'Maria Uwimana',
-                'Contraception Consultation',
-              ),
-              const Divider(),
-              _buildScheduleItem(
-                '10:30 AM',
-                'Grace Mukamana',
-                'Pregnancy Planning',
-              ),
-              const Divider(),
-              _buildScheduleItem(
-                '02:00 PM',
-                'Alice Nyirahabimana',
-                'STI Testing',
-              ),
-              const Divider(),
-              _buildScheduleItem(
-                '03:30 PM',
-                'Jeanne Uwimana',
-                'Follow-up Checkup',
-              ),
-            ],
-          ),
+          child:
+              _todayAppointments.isEmpty
+                  ? _buildEmptySchedule()
+                  : Column(children: _buildAppointmentsList()),
         ),
       ],
     );
@@ -340,6 +340,147 @@ class _HealthWorkerDashboardState extends ConsumerState<HealthWorkerDashboard> {
         ],
       ),
     );
+  }
+
+  Widget _buildEmptySchedule() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Icon(Icons.calendar_today, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 12),
+          Text(
+            'No appointments today',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Your schedule is clear for today',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildAppointmentsList() {
+    List<Widget> widgets = [];
+
+    for (int i = 0; i < _todayAppointments.length; i++) {
+      final appointment = _todayAppointments[i];
+
+      // Add appointment item
+      widgets.add(_buildRealScheduleItem(appointment));
+
+      // Add divider if not the last item
+      if (i < _todayAppointments.length - 1) {
+        widgets.add(const Divider());
+      }
+    }
+
+    return widgets;
+  }
+
+  Widget _buildRealScheduleItem(Map<String, dynamic> appointment) {
+    final time = _formatAppointmentTime(appointment['scheduledDate']);
+    final clientName = appointment['user']?['name'] ?? 'Unknown Client';
+    final reason = appointment['reason'] ?? 'General consultation';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.healthWorkerBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              time,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.healthWorkerBlue,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  clientName,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  reason,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getAppointmentStatusColor(
+                appointment['status'],
+              ).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              appointment['status'] ?? 'SCHEDULED',
+              style: TextStyle(
+                fontSize: 10,
+                color: _getAppointmentStatusColor(appointment['status']),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAppointmentTime(String? dateTime) {
+    if (dateTime == null) return '--:--';
+    try {
+      final dt = DateTime.parse(dateTime);
+      final hour = dt.hour;
+      final minute = dt.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+    } catch (e) {
+      return '--:--';
+    }
+  }
+
+  Color _getAppointmentStatusColor(String? status) {
+    switch (status?.toUpperCase()) {
+      case 'SCHEDULED':
+        return AppColors.healthWorkerBlue;
+      case 'COMPLETED':
+        return AppColors.success;
+      case 'CANCELLED':
+        return AppColors.error;
+      default:
+        return AppColors.warning;
+    }
   }
 
   Widget _buildPatientStats() {
@@ -593,10 +734,48 @@ class _HealthWorkerDashboardState extends ConsumerState<HealthWorkerDashboard> {
   void _handleHealthWorkerAction(HealthWorkerAction action) {
     switch (action.title) {
       case 'My Clients':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const AssignedClientsScreen(),
+        // Navigate to Clients tab (index 1) in main screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Use the "My Clients" tab to view assigned clients'),
+          ),
+        );
+        break;
+      case 'Patient Records':
+        // Navigate to Clients tab (index 1) in main screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Use the "My Clients" tab to view patient records'),
+          ),
+        );
+        break;
+      case 'Appointments':
+        // Navigate to Appointments tab (index 2) in main screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Use the "Appointments" tab to manage appointments'),
+          ),
+        );
+        break;
+      case 'Consultations':
+        // Navigate to Appointments tab (index 2) in main screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Use the "Appointments" tab for consultations'),
+          ),
+        );
+        break;
+      case 'Education Content':
+        Navigator.pushNamed(context, '/education');
+        break;
+      case 'Support Groups':
+        Navigator.pushNamed(context, '/support-groups');
+        break;
+      case 'Reports':
+        // Navigate to Reports tab (index 3) in main screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Use the "Reports" tab to view analytics'),
           ),
         );
         break;
@@ -619,9 +798,17 @@ class _HealthWorkerDashboardState extends ConsumerState<HealthWorkerDashboard> {
         );
         break;
       default:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${action.title} - Coming Soon!')),
-        );
+        // Try to navigate to the feature if it exists
+        final routeName = '/${action.title.toLowerCase().replaceAll(' ', '-')}';
+        try {
+          Navigator.pushNamed(context, routeName);
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${action.title} feature is being developed'),
+            ),
+          );
+        }
     }
   }
 }

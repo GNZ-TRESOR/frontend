@@ -1,9 +1,15 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/support_group.dart';
 import '../models/support_ticket.dart';
 import '../models/message.dart';
+import 'api_service.dart';
+import 'storage_service.dart';
 
 class CommunityService {
-  // Mock data for now - will be replaced with real API calls
+  final ApiService _apiService = ApiService.instance;
+
+  // Mock data for fallback - will be replaced with real API calls
   static final List<SupportGroup> _mockGroups = [
     SupportGroup(
       id: 1,
@@ -121,7 +127,62 @@ class CommunityService {
     bool? isPrivate,
     bool? isActive,
   }) async {
-    // Simulate network delay
+    try {
+      final response = await _apiService.getSupportGroups();
+
+      if (response.success && response.data != null) {
+        final responseData = Map<String, dynamic>.from(response.data as Map);
+        final groupsData = responseData['groups'] ?? responseData['data'] ?? [];
+
+        List<SupportGroup> groups = [];
+        if (groupsData is List) {
+          groups =
+              groupsData
+                  .map(
+                    (groupJson) => SupportGroup.fromJson(
+                      Map<String, dynamic>.from(groupJson),
+                    ),
+                  )
+                  .toList();
+        }
+
+        // Apply filters
+        if (category != null) {
+          groups = groups.where((group) => group.category == category).toList();
+        }
+        if (isPrivate != null) {
+          groups =
+              groups.where((group) => group.isPrivate == isPrivate).toList();
+        }
+        if (isActive != null) {
+          groups = groups.where((group) => group.isActive == isActive).toList();
+        }
+
+        return groups;
+      } else {
+        // Fallback to mock data if API fails
+        return _getMockGroups(
+          category: category,
+          isPrivate: isPrivate,
+          isActive: isActive,
+        );
+      }
+    } catch (e) {
+      // Fallback to mock data on error
+      return _getMockGroups(
+        category: category,
+        isPrivate: isPrivate,
+        isActive: isActive,
+      );
+    }
+  }
+
+  // Fallback method for mock data
+  Future<List<SupportGroup>> _getMockGroups({
+    String? category,
+    bool? isPrivate,
+    bool? isActive,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 500));
 
     var groups = List<SupportGroup>.from(_mockGroups);
@@ -141,28 +202,54 @@ class CommunityService {
   }
 
   Future<SupportGroup> createSupportGroup(SupportGroup group) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final groupData = {
+        'name': group.name,
+        'category': group.category,
+        'description': group.description,
+        'isActive': group.isActive,
+        'isPrivate': group.isPrivate,
+        'creatorId': group.creatorId,
+        'contactInfo': group.contactInfo,
+        'meetingLocation': group.meetingLocation,
+        'meetingSchedule': group.meetingSchedule,
+        'maxMembers': group.maxMembers,
+        'tags': group.tags,
+      };
 
-    final newGroup = SupportGroup(
-      id: _mockGroups.length + 1,
-      name: group.name,
-      category: group.category,
-      description: group.description,
-      memberCount: 1,
-      isActive: group.isActive,
-      isPrivate: group.isPrivate,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      creatorId: group.creatorId,
-      contactInfo: group.contactInfo,
-      meetingLocation: group.meetingLocation,
-      meetingSchedule: group.meetingSchedule,
-      maxMembers: group.maxMembers,
-      tags: group.tags,
-    );
+      final response = await _apiService.createSupportGroup(groupData);
 
-    _mockGroups.add(newGroup);
-    return newGroup;
+      if (response.success && response.data != null) {
+        final responseData = Map<String, dynamic>.from(response.data as Map);
+        return SupportGroup.fromJson(responseData);
+      } else {
+        throw Exception(response.message ?? 'Failed to create support group');
+      }
+    } catch (e) {
+      // Fallback to mock implementation
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final newGroup = SupportGroup(
+        id: _mockGroups.length + 1,
+        name: group.name,
+        category: group.category,
+        description: group.description,
+        memberCount: 1,
+        isActive: group.isActive,
+        isPrivate: group.isPrivate,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        creatorId: group.creatorId,
+        contactInfo: group.contactInfo,
+        meetingLocation: group.meetingLocation,
+        meetingSchedule: group.meetingSchedule,
+        maxMembers: group.maxMembers,
+        tags: group.tags,
+      );
+
+      _mockGroups.add(newGroup);
+      return newGroup;
+    }
   }
 
   Future<SupportGroup> updateSupportGroup(int id, SupportGroup group) async {
@@ -209,22 +296,43 @@ class CommunityService {
   }
 
   Future<SupportGroupMember> joinGroup(int groupId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final response = await _apiService.joinSupportGroup(groupId);
 
-    return SupportGroupMember(
-      id: 3,
-      userId: 1, // Current user
-      groupId: groupId,
-      role: GroupMemberRole.member,
-      isActive: true,
-      joinedAt: DateTime.now(),
-      lastActivityAt: DateTime.now(),
-    );
+      if (response.success && response.data != null) {
+        final responseData = Map<String, dynamic>.from(response.data as Map);
+        return SupportGroupMember.fromJson(responseData);
+      } else {
+        throw Exception(response.message ?? 'Failed to join group');
+      }
+    } catch (e) {
+      // Fallback to mock implementation
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      return SupportGroupMember(
+        id: 3,
+        userId: 1, // Current user
+        groupId: groupId,
+        role: GroupMemberRole.member,
+        isActive: true,
+        joinedAt: DateTime.now(),
+        lastActivityAt: DateTime.now(),
+      );
+    }
   }
 
   Future<void> leaveGroup(int groupId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    // Mock implementation - just simulate success
+    try {
+      final response = await _apiService.leaveSupportGroup(groupId);
+
+      if (!response.success) {
+        throw Exception(response.message ?? 'Failed to leave group');
+      }
+    } catch (e) {
+      // Fallback to mock implementation
+      await Future.delayed(const Duration(milliseconds: 500));
+      // Mock implementation - just simulate success
+    }
   }
 
   // Support Tickets
@@ -293,28 +401,164 @@ class CommunityService {
     int? senderId,
     bool? unreadOnly,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      // Get current user ID from storage
+      final userData = StorageService.getUserData();
+      if (userData == null || userData['id'] == null) {
+        throw Exception('User not authenticated');
+      }
 
-    var messages = List<Message>.from(_mockMessages);
+      final userId = userData['id'] as int;
 
-    // Apply filters
-    if (conversationId != null) {
-      messages =
-          messages
-              .where((msg) => msg.conversationId == conversationId)
-              .toList();
-    }
-    if (receiverId != null) {
-      messages = messages.where((msg) => msg.receiverId == receiverId).toList();
-    }
-    if (senderId != null) {
-      messages = messages.where((msg) => msg.senderId == senderId).toList();
-    }
-    if (unreadOnly == true) {
-      messages = messages.where((msg) => msg.isRead != true).toList();
-    }
+      // If we have both sender and receiver, get conversation between them
+      if (senderId != null && receiverId != null) {
+        final response = await _apiService.getConversation(
+          senderId,
+          receiverId,
+        );
 
-    return messages;
+        if (response.success && response.data != null) {
+          final messagesData =
+              response.data['messages'] as List<dynamic>? ?? [];
+
+          return messagesData.map((msgData) {
+            final msg = Map<String, dynamic>.from(msgData);
+
+            return Message(
+              id: msg['id'],
+              content: msg['content'] ?? '',
+              senderId: msg['senderId'] ?? 0,
+              receiverId: msg['receiverId'] ?? 0,
+              conversationId:
+                  msg['conversationId'] ?? 'conv_${senderId}_$receiverId',
+              messageType: MessageType.values.firstWhere(
+                (type) =>
+                    type.toString().split('.').last ==
+                    (msg['messageType'] ?? 'text'),
+                orElse: () => MessageType.text,
+              ),
+              priority: MessagePriority.values.firstWhere(
+                (priority) =>
+                    priority.toString().split('.').last ==
+                    (msg['priority'] ?? 'normal'),
+                orElse: () => MessagePriority.normal,
+              ),
+              isRead: msg['isRead'] ?? false,
+              isEmergency: msg['isEmergency'] ?? false,
+              createdAt:
+                  msg['createdAt'] != null
+                      ? DateTime.parse(msg['createdAt'])
+                      : DateTime.now(),
+              readAt:
+                  msg['readAt'] != null ? DateTime.parse(msg['readAt']) : null,
+              replyToId: msg['replyToId'],
+              metadata: msg['metadata'],
+              attachmentUrls:
+                  msg['attachmentUrls'] != null
+                      ? List<String>.from(msg['attachmentUrls'])
+                      : null,
+            );
+          }).toList();
+        }
+      }
+
+      // Fallback to general messages API
+      final response = await _apiService.getMessagesForUser(userId);
+
+      if (response.success && response.data != null) {
+        final messagesData =
+            response.data is List
+                ? response.data as List<dynamic>
+                : response.data['messages'] as List<dynamic>? ?? [];
+
+        var messages =
+            messagesData.map((msgData) {
+              final msg = Map<String, dynamic>.from(msgData);
+
+              return Message(
+                id: msg['id'],
+                content: msg['content'] ?? '',
+                senderId: msg['senderId'] ?? 0,
+                receiverId: msg['receiverId'] ?? 0,
+                conversationId: msg['conversationId'] ?? '',
+                messageType: MessageType.values.firstWhere(
+                  (type) =>
+                      type.toString().split('.').last ==
+                      (msg['messageType'] ?? 'text'),
+                  orElse: () => MessageType.text,
+                ),
+                priority: MessagePriority.values.firstWhere(
+                  (priority) =>
+                      priority.toString().split('.').last ==
+                      (msg['priority'] ?? 'normal'),
+                  orElse: () => MessagePriority.normal,
+                ),
+                isRead: msg['isRead'] ?? false,
+                isEmergency: msg['isEmergency'] ?? false,
+                createdAt:
+                    msg['createdAt'] != null
+                        ? DateTime.parse(msg['createdAt'])
+                        : DateTime.now(),
+                readAt:
+                    msg['readAt'] != null
+                        ? DateTime.parse(msg['readAt'])
+                        : null,
+                replyToId: msg['replyToId'],
+                metadata: msg['metadata'],
+                attachmentUrls:
+                    msg['attachmentUrls'] != null
+                        ? List<String>.from(msg['attachmentUrls'])
+                        : null,
+              );
+            }).toList();
+
+        // Apply filters
+        if (conversationId != null) {
+          messages =
+              messages
+                  .where((msg) => msg.conversationId == conversationId)
+                  .toList();
+        }
+        if (receiverId != null) {
+          messages =
+              messages.where((msg) => msg.receiverId == receiverId).toList();
+        }
+        if (senderId != null) {
+          messages = messages.where((msg) => msg.senderId == senderId).toList();
+        }
+        if (unreadOnly == true) {
+          messages = messages.where((msg) => msg.isRead != true).toList();
+        }
+
+        return messages;
+      }
+
+      return [];
+    } catch (e) {
+      debugPrint('Error loading messages: $e');
+      // Fallback to mock data if API fails
+      var messages = List<Message>.from(_mockMessages);
+
+      // Apply filters to mock data
+      if (conversationId != null) {
+        messages =
+            messages
+                .where((msg) => msg.conversationId == conversationId)
+                .toList();
+      }
+      if (receiverId != null) {
+        messages =
+            messages.where((msg) => msg.receiverId == receiverId).toList();
+      }
+      if (senderId != null) {
+        messages = messages.where((msg) => msg.senderId == senderId).toList();
+      }
+      if (unreadOnly == true) {
+        messages = messages.where((msg) => msg.isRead != true).toList();
+      }
+
+      return messages;
+    }
   }
 
   Future<Message> sendMessage(Message message) async {
@@ -353,7 +597,65 @@ class CommunityService {
   }
 
   Future<List<Conversation>> getConversations() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return List<Conversation>.from(_mockConversations);
+    try {
+      // Get current user ID from storage or auth service
+      final userData = StorageService.getUserData();
+      if (userData == null || userData['id'] == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final userId = userData['id'] as int;
+      final response = await _apiService.getConversationPartners(userId);
+
+      if (response.success && response.data != null) {
+        final conversationsData =
+            response.data['conversations'] as List<dynamic>? ?? [];
+
+        return conversationsData.map((convData) {
+          final conv = Map<String, dynamic>.from(convData);
+
+          // Create conversation from API data
+          return Conversation(
+            id: 'conv_${conv['partnerId']}_$userId',
+            groupName: conv['partnerName'] ?? 'Unknown User',
+            participantIds: [userId, conv['partnerId'] as int],
+            isGroup: false,
+            lastActivity:
+                conv['lastMessageTime'] != null
+                    ? DateTime.parse(conv['lastMessageTime'])
+                    : DateTime.now(),
+            unreadCount: conv['unreadCount'] ?? 0,
+            lastMessage:
+                conv['lastMessage'] != null
+                    ? Message(
+                      id: conv['lastMessage']['id'] ?? 0,
+                      content: conv['lastMessage']['content'] ?? '',
+                      senderId: conv['lastMessage']['senderId'] ?? 0,
+                      receiverId: conv['lastMessage']['receiverId'] ?? 0,
+                      conversationId: 'conv_${conv['partnerId']}_$userId',
+                      messageType: MessageType.text,
+                      priority: MessagePriority.normal,
+                      isRead: conv['lastMessage']['isRead'] ?? false,
+                      isEmergency: false,
+                      createdAt:
+                          conv['lastMessage']['createdAt'] != null
+                              ? DateTime.parse(conv['lastMessage']['createdAt'])
+                              : DateTime.now(),
+                      readAt:
+                          conv['lastMessage']['readAt'] != null
+                              ? DateTime.parse(conv['lastMessage']['readAt'])
+                              : null,
+                    )
+                    : null,
+          );
+        }).toList();
+      }
+
+      return [];
+    } catch (e) {
+      debugPrint('Error loading conversations: $e');
+      // Fallback to mock data if API fails
+      return List<Conversation>.from(_mockConversations);
+    }
   }
 }

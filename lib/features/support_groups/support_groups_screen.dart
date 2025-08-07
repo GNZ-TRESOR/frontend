@@ -16,7 +16,7 @@ class SupportGroupsScreen extends ConsumerStatefulWidget {
 class _SupportGroupsScreenState extends ConsumerState<SupportGroupsScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {
@@ -60,11 +60,6 @@ class _SupportGroupsScreenState extends ConsumerState<SupportGroupsScreen>
             _buildMessagesTab(),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateGroupDialog,
-        backgroundColor: AppColors.supportPurple,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -156,9 +151,9 @@ class _SupportGroupsScreenState extends ConsumerState<SupportGroupsScreen>
             ),
           ),
           const SizedBox(height: 16),
-          ...availableGroups
-              .map((group) => _buildGroupCard(group, isJoined: false))
-              .toList(),
+          ...availableGroups.map(
+            (group) => _buildGroupCard(group, isJoined: false),
+          ),
           const SizedBox(height: 24),
           Text(
             'Browse Categories',
@@ -331,6 +326,23 @@ class _SupportGroupsScreenState extends ConsumerState<SupportGroupsScreen>
                         minimumSize: Size.zero,
                       ),
                       child: const Text('Join', style: TextStyle(fontSize: 12)),
+                    )
+                  else
+                    OutlinedButton(
+                      onPressed: () => _leaveGroup(group['name']),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(color: AppColors.error),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                      ),
+                      child: const Text(
+                        'Leave',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                 ],
               ),
@@ -548,41 +560,7 @@ class _SupportGroupsScreenState extends ConsumerState<SupportGroupsScreen>
     );
   }
 
-  // Action methods
-  void _showCreateGroupDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Create Support Group'),
-            content: const Text(
-              'Create a new support group for others to join',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _createGroup();
-                },
-                child: const Text('Create'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _createGroup() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Support group created successfully!'),
-        backgroundColor: AppColors.success,
-      ),
-    );
-  }
+  // Action methods - Clients can only join/leave groups created by health workers
 
   void _openGroup(String groupName) {
     Navigator.push(
@@ -593,13 +571,89 @@ class _SupportGroupsScreenState extends ConsumerState<SupportGroupsScreen>
     );
   }
 
-  void _joinGroup(String groupName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Joined $groupName successfully!'),
-        backgroundColor: AppColors.success,
-      ),
+  Future<void> _joinGroup(String groupName) async {
+    try {
+      // In a real implementation, you would get the group ID and call the API
+      // final response = await ApiService.instance.joinSupportGroup(groupId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Joined $groupName successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+
+        // Refresh the groups list
+        setState(() {
+          // Move group from discover to my groups in mock data
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error joining group: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _leaveGroup(String groupName) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Leave Support Group'),
+            content: Text('Are you sure you want to leave "$groupName"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                ),
+                child: const Text('Leave'),
+              ),
+            ],
+          ),
     );
+
+    if (confirmed == true && mounted) {
+      try {
+        // In a real implementation, you would get the group ID and call the API
+        // final response = await ApiService.instance.leaveSupportGroup(groupId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Left $groupName successfully'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+
+          // Refresh the groups list
+          setState(() {
+            // Move group from my groups to discover in mock data
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error leaving group: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _browseCategory(String categoryName) {

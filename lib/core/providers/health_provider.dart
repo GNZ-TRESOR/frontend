@@ -389,6 +389,42 @@ class HealthNotifier extends StateNotifier<HealthState> {
     }
   }
 
+  /// Add medication
+  Future<bool> addMedication(Medication medication) async {
+    return await createMedication(medication);
+  }
+
+  /// Update medication
+  Future<bool> updateMedication(Medication medication) async {
+    if (medication.id == null) return false;
+
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final response = await _apiService.updateMedication(
+        medication.id!,
+        medication.toJson(),
+      );
+      if (response.success) {
+        await loadMedications(); // Reload to get updated list
+        state = state.copyWith(isLoading: false);
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: response.message ?? 'Failed to update medication',
+        );
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Error updating medication: $e',
+      );
+      return false;
+    }
+  }
+
   /// Delete medication
   Future<bool> deleteMedication(int medicationId) async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -527,15 +563,9 @@ class HealthNotifier extends StateNotifier<HealthState> {
   // ==================== COMMUNITY EVENTS METHODS ====================
 
   /// Get community events
-  Future<List<CommunityEvent>> getCommunityEvents({
-    String? category,
-    String? status,
-  }) async {
+  Future<List<CommunityEvent>> getCommunityEvents() async {
     try {
-      final response = await _apiService.getCommunityEvents(
-        category: category,
-        status: status,
-      );
+      final response = await _apiService.getCommunityEvents();
 
       if (response.success && response.data != null) {
         final eventsData = response.data['events'] as List<dynamic>? ?? [];

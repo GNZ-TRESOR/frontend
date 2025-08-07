@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
+
 /// User model for the family planning platform
 class User {
   final int? id;
-  final String firstName;
-  final String lastName;
+  final String? firstName;
+  final String? lastName;
   final String email;
   final String? phoneNumber;
   final DateTime? dateOfBirth;
@@ -16,8 +18,8 @@ class User {
 
   User({
     this.id,
-    required this.firstName,
-    required this.lastName,
+    this.firstName,
+    this.lastName,
     required this.email,
     this.phoneNumber,
     this.dateOfBirth,
@@ -31,17 +33,59 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    // Handle both 'name' and 'firstName'/'lastName' formats
-    String firstName = '';
-    String lastName = '';
-
-    if (json['name'] != null) {
-      final nameParts = (json['name'] as String).split(' ');
-      firstName = nameParts.isNotEmpty ? nameParts.first : '';
-      lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+    // Handle both 'name' and 'firstName'/'lastName' formats robustly
+    String? firstName;
+    String? lastName;
+    if (json['name'] != null && (json['name'] as String).trim().isNotEmpty) {
+      final nameParts = (json['name'] as String).trim().split(' ');
+      if (nameParts.length == 1) {
+        firstName = nameParts[0];
+        lastName = '';
+      } else {
+        firstName = nameParts.first;
+        lastName = nameParts.sublist(1).join(' ');
+      }
     } else {
       firstName = json['firstName'] ?? '';
       lastName = json['lastName'] ?? '';
+    }
+
+    // Normalize role for frontend logic
+    String rawRole = json['role'] ?? 'client';
+    String normalizedRole = rawRole
+        .toString()
+        .toLowerCase()
+        .replaceAll('_', '')
+        .replaceAll(' ', '');
+    if (normalizedRole == 'healthworker' || normalizedRole == 'healthworker') {
+      normalizedRole = 'healthworker';
+    } else if (normalizedRole == 'admin') {
+      normalizedRole = 'admin';
+    } else if (normalizedRole == 'client' || normalizedRole == 'user') {
+      normalizedRole = 'client';
+    }
+
+    debugPrint(
+      '[User.fromJson] Parsed user: id=${json['id']}, email=${json['email']}, role=$rawRole, normalizedRole=$normalizedRole',
+    );
+
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        return DateTime.tryParse(value);
+      } else if (value is List && value.length >= 3) {
+        // [year, month, day, ...]
+        return DateTime(
+          value[0] as int,
+          value[1] as int,
+          value[2] as int,
+          value.length > 3 ? value[3] as int : 0,
+          value.length > 4 ? value[4] as int : 0,
+          value.length > 5 ? value[5] as int : 0,
+          value.length > 6 ? value[6] as int : 0,
+        );
+      }
+      return null;
     }
 
     return User(
@@ -52,20 +96,15 @@ class User {
       phoneNumber:
           json['phone'] ??
           json['phoneNumber'], // Handle both 'phone' and 'phoneNumber'
-      dateOfBirth:
-          json['dateOfBirth'] != null
-              ? DateTime.parse(json['dateOfBirth'])
-              : null,
+      dateOfBirth: parseDate(json['dateOfBirth']),
       gender: json['gender'],
-      role: json['role'] ?? 'client',
+      role: normalizedRole,
       status: json['status'] ?? 'ACTIVE',
       profileImageUrl:
           json['profilePictureUrl'] ??
           json['profileImageUrl'], // Handle both formats
-      createdAt:
-          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      updatedAt:
-          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+      createdAt: parseDate(json['createdAt']),
+      updatedAt: parseDate(json['updatedAt']),
       additionalInfo: json['additionalInfo'],
     );
   }
@@ -121,13 +160,24 @@ class User {
   }
 
   /// Get full name
-  String get fullName => '$firstName $lastName';
+  String get fullName {
+    if ((firstName ?? '').isNotEmpty && (lastName ?? '').isNotEmpty) {
+      return '$firstName $lastName';
+    } else if ((firstName ?? '').isNotEmpty) {
+      return firstName!;
+    } else if ((lastName ?? '').isNotEmpty) {
+      return lastName!;
+    } else {
+      return email;
+    }
+  }
 
   /// Get name (alias for fullName for backward compatibility)
   String get name => fullName;
 
   /// Get display name (first name or full name)
-  String get displayName => firstName.isNotEmpty ? firstName : fullName;
+  String get displayName =>
+      (firstName ?? '').isNotEmpty ? firstName! : fullName;
 
   /// Check if user is admin
   bool get isAdmin => role.toLowerCase() == 'admin';
@@ -147,8 +197,13 @@ class User {
   /// Get user initials for avatar
   String get initials {
     String firstInitial =
-        firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
-    String lastInitial = lastName.isNotEmpty ? lastName[0].toUpperCase() : '';
+        (firstName != null && firstName!.isNotEmpty)
+            ? firstName![0].toUpperCase()
+            : '';
+    String lastInitial =
+        (lastName != null && lastName!.isNotEmpty)
+            ? lastName![0].toUpperCase()
+            : '';
     return '$firstInitial$lastInitial';
   }
 
@@ -196,8 +251,7 @@ class User {
 
   /// Check if profile is complete
   bool get isProfileComplete {
-    return firstName.isNotEmpty &&
-        lastName.isNotEmpty &&
+    return (firstName ?? '').isNotEmpty &&
         email.isNotEmpty &&
         phoneNumber != null &&
         phoneNumber!.isNotEmpty &&
@@ -212,8 +266,8 @@ class User {
     int totalFields =
         7; // firstName, lastName, email, phone, dob, gender, profileImage
 
-    if (firstName.isNotEmpty) completedFields++;
-    if (lastName.isNotEmpty) completedFields++;
+    if ((firstName ?? '').isNotEmpty) completedFields++;
+    if ((lastName ?? '').isNotEmpty) completedFields++;
     if (email.isNotEmpty) completedFields++;
     if (phoneNumber != null && phoneNumber!.isNotEmpty) completedFields++;
     if (dateOfBirth != null) completedFields++;

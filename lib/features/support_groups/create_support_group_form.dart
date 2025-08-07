@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/support_group.dart';
 import '../../core/providers/community_provider.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/services/api_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/auto_translate_widget.dart';
 
@@ -10,10 +11,12 @@ class CreateSupportGroupForm extends ConsumerStatefulWidget {
   const CreateSupportGroupForm({super.key});
 
   @override
-  ConsumerState<CreateSupportGroupForm> createState() => _CreateSupportGroupFormState();
+  ConsumerState<CreateSupportGroupForm> createState() =>
+      _CreateSupportGroupFormState();
 }
 
-class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm> {
+class _CreateSupportGroupFormState
+    extends ConsumerState<CreateSupportGroupForm> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -25,7 +28,7 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
   String _selectedCategory = 'Mental Health';
   bool _isPrivate = false;
   bool _isActive = true;
-  List<String> _tags = [];
+  final List<String> _tags = [];
   final _tagController = TextEditingController();
 
   final List<String> _categories = [
@@ -118,9 +121,7 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
       decoration: InputDecoration(
         labelText: 'Group Name *',
         hintText: 'Enter group name',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
@@ -136,16 +137,12 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
       value: _selectedCategory,
       decoration: InputDecoration(
         labelText: 'Category *',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      items: _categories.map((category) {
-        return DropdownMenuItem(
-          value: category,
-          child: category.at(),
-        );
-      }).toList(),
+      items:
+          _categories.map((category) {
+            return DropdownMenuItem(value: category, child: category.at());
+          }).toList(),
       onChanged: (value) {
         if (value != null) {
           setState(() {
@@ -163,9 +160,7 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
       decoration: InputDecoration(
         labelText: 'Description',
         hintText: 'Describe the purpose and goals of your group',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -176,9 +171,7 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
       decoration: InputDecoration(
         labelText: 'Contact Information',
         hintText: 'Email, phone, or other contact details',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -191,9 +184,7 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
           decoration: InputDecoration(
             labelText: 'Meeting Location',
             hintText: 'Where does the group meet?',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 16),
@@ -202,9 +193,7 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
           decoration: InputDecoration(
             labelText: 'Meeting Schedule',
             hintText: 'When does the group meet?',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],
@@ -218,9 +207,7 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
       decoration: InputDecoration(
         labelText: 'Maximum Members',
         hintText: 'Leave empty for unlimited',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       validator: (value) {
         if (value != null && value.isNotEmpty) {
@@ -292,13 +279,14 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          children: _tags.map((tag) {
-            return Chip(
-              label: Text(tag),
-              onDeleted: () => _removeTag(tag),
-              deleteIcon: const Icon(Icons.close, size: 16),
-            );
-          }).toList(),
+          children:
+              _tags.map((tag) {
+                return Chip(
+                  label: Text(tag),
+                  onDeleted: () => _removeTag(tag),
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                );
+              }).toList(),
         ),
       ],
     );
@@ -343,44 +331,80 @@ class _CreateSupportGroupFormState extends ConsumerState<CreateSupportGroupForm>
     });
   }
 
-  void _createGroup() {
+  Future<void> _createGroup() async {
     if (_formKey.currentState!.validate()) {
-      final group = SupportGroup(
-        category: _selectedCategory,
-        contactInfo: _contactInfoController.text.trim().isEmpty 
-            ? null 
-            : _contactInfoController.text.trim(),
-        createdAt: DateTime.now(),
-        description: _descriptionController.text.trim().isEmpty 
-            ? null 
-            : _descriptionController.text.trim(),
-        isActive: _isActive,
-        isPrivate: _isPrivate,
-        maxMembers: _maxMembersController.text.trim().isEmpty 
-            ? null 
-            : int.tryParse(_maxMembersController.text.trim()),
-        meetingLocation: _meetingLocationController.text.trim().isEmpty 
-            ? null 
-            : _meetingLocationController.text.trim(),
-        meetingSchedule: _meetingScheduleController.text.trim().isEmpty 
-            ? null 
-            : _meetingScheduleController.text.trim(),
-        memberCount: 1, // Creator is the first member
-        name: _nameController.text.trim(),
-        updatedAt: DateTime.now(),
-        creatorId: 1, // TODO: Get from auth provider
-        tags: _tags.isEmpty ? null : _tags,
-      );
+      final user = ref.read(currentUserProvider);
+      if (user?.id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: 'Error: User not authenticated'.at(),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
-      ref.read(supportGroupsProvider.notifier).createGroup(group);
-      Navigator.pop(context);
+      try {
+        // Prepare data for API call
+        final groupData = {
+          'name': _nameController.text.trim(),
+          'category': _selectedCategory,
+          'description':
+              _descriptionController.text.trim().isEmpty
+                  ? null
+                  : _descriptionController.text.trim(),
+          'contactInfo':
+              _contactInfoController.text.trim().isEmpty
+                  ? null
+                  : _contactInfoController.text.trim(),
+          'meetingLocation':
+              _meetingLocationController.text.trim().isEmpty
+                  ? null
+                  : _meetingLocationController.text.trim(),
+          'meetingSchedule':
+              _meetingScheduleController.text.trim().isEmpty
+                  ? null
+                  : _meetingScheduleController.text.trim(),
+          'maxMembers':
+              _maxMembersController.text.trim().isEmpty
+                  ? null
+                  : int.tryParse(_maxMembersController.text.trim()),
+          'isPrivate': _isPrivate,
+          'isActive': _isActive,
+          'creatorId': user!.id!,
+          'tags': _tags.isEmpty ? null : _tags,
+        };
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: 'Support group created successfully!'.at(),
-          backgroundColor: Colors.green,
-        ),
-      );
+        final response = await ApiService.instance.createSupportGroup(
+          groupData,
+        );
+
+        if (response.success) {
+          if (mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: 'Support group created successfully!'.at(),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+
+          // Refresh the support groups list
+          ref.read(supportGroupsProvider.notifier).loadSupportGroups();
+        } else {
+          throw Exception(response.message ?? 'Failed to create support group');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error creating support group: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 }

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/widgets/loading_overlay.dart';
 import '../../core/services/api_service.dart';
+import '../../core/models/api_response.dart';
+import '../../core/widgets/loading_overlay.dart';
 
-/// Admin Reports Screen
+/// Clean, Simple Reports Screen - Displays Real Database Data
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
@@ -16,368 +17,179 @@ class ReportsScreen extends ConsumerStatefulWidget {
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   bool _isLoading = false;
   String? _error;
-  List<ReportTemplate> _reportTemplates = [];
-  List<GeneratedReport> _generatedReports = [];
-  String _selectedPeriod = '30'; // days
-  DateTime? _startDate;
-  DateTime? _endDate;
+
+  // Real data from APIs
+  Map<String, dynamic>? _dashboardStats;
+  Map<String, dynamic>? _analyticsData;
+  List<dynamic>? _users;
+  List<dynamic>? _healthWorkers;
+  List<dynamic>? _facilities;
+  List<dynamic>? _healthRecords;
+  List<dynamic>? _appointments;
 
   @override
   void initState() {
     super.initState();
-    _loadReportTemplates();
-    _loadGeneratedReports();
+    _loadAllData();
   }
 
-  Future<void> _loadReportTemplates() async {
+  Future<void> _loadAllData() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      // Create templates based on available real data APIs only
-      _reportTemplates = [
-        ReportTemplate(
-          id: 'user_activity',
-          name: 'User Activity Report',
-          description: 'Real-time user statistics and activity analysis',
-          icon: Icons.people,
-          color: AppColors.primary,
-        ),
-        ReportTemplate(
-          id: 'health_records',
-          name: 'Health Records Report',
-          description: 'Health records statistics from real data',
-          icon: Icons.health_and_safety,
-          color: AppColors.healthRecordGreen,
-        ),
-        ReportTemplate(
-          id: 'appointments',
-          name: 'Appointments Report',
-          description: 'Appointment analytics from live data',
-          icon: Icons.calendar_today,
-          color: AppColors.appointmentBlue,
-        ),
-        ReportTemplate(
-          id: 'facilities',
-          name: 'Health Facilities Report',
-          description: 'Facility performance and utilization metrics',
-          icon: Icons.local_hospital,
-          color: AppColors.secondary,
-        ),
-        ReportTemplate(
-          id: 'system_performance',
-          name: 'System Performance Report',
-          description: 'Platform performance from real metrics',
-          icon: Icons.speed,
-          color: AppColors.warning,
-        ),
-      ];
+      // Load all real data from backend APIs with individual error handling
+      final results = await Future.wait([
+        ApiService.instance.getDashboardStats().catchError((e) {
+          print('Dashboard stats error: $e');
+          return ApiResponse.error(message: 'Dashboard stats failed');
+        }),
+        ApiService.instance.getAnalytics(days: 30).catchError((e) {
+          print('Analytics error: $e');
+          return ApiResponse.error(message: 'Analytics failed');
+        }),
+        ApiService.instance.getAdminUsers().catchError((e) {
+          print('Admin users error: $e');
+          return ApiResponse.error(message: 'Admin users failed');
+        }),
+        ApiService.instance.getHealthWorkers().catchError((e) {
+          print('Health workers error: $e');
+          return ApiResponse.error(message: 'Health workers failed');
+        }),
+        ApiService.instance.getHealthFacilities().catchError((e) {
+          print('Health facilities error: $e');
+          return ApiResponse.error(message: 'Health facilities failed');
+        }),
+        _getAdminHealthRecords().catchError((e) {
+          print('Health records error: $e');
+          return ApiResponse.error(message: 'Health records failed');
+        }),
+        ApiService.instance.getAppointments().catchError((e) {
+          print('Appointments error: $e');
+          return ApiResponse.error(message: 'Appointments failed');
+        }),
+      ]);
+
+      print('Results array length: ${results.length}');
+      for (int i = 0; i < results.length; i++) {
+        print(
+          'Result $i: success=${results[i].success}, data type=${results[i].data.runtimeType}',
+        );
+      }
+
+      // Process dashboard stats
+      try {
+        if (results[0].success && results[0].data != null) {
+          print('Dashboard stats raw response: ${results[0]}');
+          print('Dashboard stats data: ${results[0].data}');
+          // The data is already the stats object (ApiResponse extracts it)
+          _dashboardStats = results[0].data;
+          print('Dashboard stats assigned: $_dashboardStats');
+        }
+      } catch (e) {
+        print('Error processing dashboard stats: $e');
+      }
+
+      // Process analytics
+      try {
+        if (results[1].success && results[1].data != null) {
+          print('Analytics data: ${results[1].data}');
+          _analyticsData = results[1].data['analytics'];
+          print('Analytics data assigned: $_analyticsData');
+        }
+      } catch (e) {
+        print('Error processing analytics: $e');
+      }
+
+      // Process users
+      try {
+        if (results[2].success && results[2].data != null) {
+          print('Users data: ${results[2].data}');
+          _users = results[2].data['users'] ?? results[2].data['data'];
+          print('Users assigned: ${_users?.length} users');
+        }
+      } catch (e) {
+        print('Error processing users: $e');
+      }
+
+      // Process health workers
+      try {
+        if (results[3].success && results[3].data != null) {
+          print('Health workers data: ${results[3].data}');
+          // Data is already in the correct format (List)
+          _healthWorkers = results[3].data as List?;
+          print('Health workers assigned: ${_healthWorkers?.length} workers');
+        }
+      } catch (e) {
+        print('Error processing health workers: $e');
+        _healthWorkers = []; // Fallback to empty list
+      }
+
+      // Process facilities
+      try {
+        if (results[4].success && results[4].data != null) {
+          print('Facilities data: ${results[4].data}');
+          // Data is already in the correct format (List)
+          _facilities = results[4].data as List?;
+          print('Facilities assigned: ${_facilities?.length} facilities');
+        }
+      } catch (e) {
+        print('Error processing facilities: $e');
+        _facilities = []; // Fallback to empty list
+      }
+
+      // Process health records
+      try {
+        if (results[5].success && results[5].data != null) {
+          print('Health records data: ${results[5].data}');
+          // Data is already in the correct format (List)
+          _healthRecords = results[5].data as List?;
+          print('Health records assigned: ${_healthRecords?.length} records');
+        }
+      } catch (e) {
+        print('Error processing health records: $e');
+        _healthRecords = []; // Fallback to empty list
+      }
+
+      // Process appointments
+      try {
+        if (results[6].success && results[6].data != null) {
+          print('Appointments data: ${results[6].data}');
+          // Data is already in the correct format (List)
+          _appointments = results[6].data as List?;
+          print('Appointments assigned: ${_appointments?.length} appointments');
+        }
+      } catch (e) {
+        print('Error processing appointments: $e');
+        _appointments = []; // Fallback to empty list
+      }
     } catch (e) {
-      _error = 'Error creating report templates: $e';
+      // Don't show error if we have some data loaded
+      if (_dashboardStats == null && _analyticsData == null) {
+        _error = 'Failed to load data: $e';
+      }
+      print('Complete error in _loadAllData: $e');
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadGeneratedReports() async {
-    try {
-      // Start with empty list - only real generated reports will be added
-      _generatedReports = [];
-      setState(() {});
-    } catch (e) {
-      _generatedReports = [];
-      setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('System Reports'),
-        backgroundColor: AppColors.warning,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              _loadReportTemplates();
-              _loadGeneratedReports();
-            },
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAllData),
         ],
       ),
       body: LoadingOverlay(
         isLoading: _isLoading,
-        child:
-            _error != null
-                ? _buildErrorState()
-                : DefaultTabController(
-                  length: 2,
-                  child: Column(
-                    children: [
-                      const TabBar(
-                        labelColor: AppColors.warning,
-                        unselectedLabelColor: AppColors.textSecondary,
-                        indicatorColor: AppColors.warning,
-                        tabs: [
-                          Tab(text: 'Generate Reports'),
-                          Tab(text: 'Generated Reports'),
-                        ],
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            _buildGenerateReportsTab(),
-                            _buildGeneratedReportsTab(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-      ),
-    );
-  }
-
-  Widget _buildGenerateReportsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDateRangeSelector(),
-          const SizedBox(height: 24),
-          Text(
-            'Available Reports',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ..._reportTemplates.map(
-            (template) => _buildReportTemplateCard(template),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGeneratedReportsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Recent Reports',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              TextButton.icon(
-                onPressed: _loadGeneratedReports,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_generatedReports.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.assessment_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No reports generated yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            )
-          else
-            ..._generatedReports.map(
-              (report) => _buildGeneratedReportCard(report),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateRangeSelector() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Report Period',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: _selectedPeriod,
-                    isExpanded: true,
-                    items: [
-                      const DropdownMenuItem(
-                        value: '7',
-                        child: Text('Last 7 days'),
-                      ),
-                      const DropdownMenuItem(
-                        value: '30',
-                        child: Text('Last 30 days'),
-                      ),
-                      const DropdownMenuItem(
-                        value: '90',
-                        child: Text('Last 90 days'),
-                      ),
-                      const DropdownMenuItem(
-                        value: 'custom',
-                        child: Text('Custom Range'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _selectedPeriod = value!);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            if (_selectedPeriod == 'custom') ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _selectDate(true),
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Start Date',
-                          border: OutlineInputBorder(),
-                        ),
-                        child: Text(
-                          _startDate != null
-                              ? '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
-                              : 'Select start date',
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _selectDate(false),
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'End Date',
-                          border: OutlineInputBorder(),
-                        ),
-                        child: Text(
-                          _endDate != null
-                              ? '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
-                              : 'Select end date',
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReportTemplateCard(ReportTemplate template) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: template.color,
-          child: Icon(template.icon, color: Colors.white),
-        ),
-        title: Text(
-          template.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(template.description),
-        trailing: ElevatedButton(
-          onPressed: () => _generateReport(template),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.warning,
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Generate'),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGeneratedReportCard(GeneratedReport report) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getStatusColor(report.status),
-          child: Icon(_getStatusIcon(report.status), color: Colors.white),
-        ),
-        title: Text(
-          report.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Generated: ${_formatDate(report.generatedAt)}'),
-            Text('Period: ${report.period}'),
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: _getStatusColor(report.status).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                report.status,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _getStatusColor(report.status),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) => _handleReportAction(report, value),
-          itemBuilder:
-              (context) => [
-                const PopupMenuItem(value: 'view', child: Text('View')),
-                const PopupMenuItem(value: 'download', child: Text('Download')),
-                const PopupMenuItem(value: 'share', child: Text('Share')),
-                const PopupMenuItem(value: 'delete', child: Text('Delete')),
-              ],
-        ),
+        child: _error != null ? _buildErrorState() : _buildReportsContent(),
       ),
     );
   }
@@ -387,1002 +199,384 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+          Icon(Icons.error_outline, size: 64, color: AppColors.error),
           const SizedBox(height: 16),
           Text(
-            'Error loading reports',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            'Error Loading Reports',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
-            _error!,
+            _error ?? 'Unknown error occurred',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey[500]),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _loadReportTemplates,
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
-            child: const Text('Retry', style: TextStyle(color: Colors.white)),
-          ),
+          const SizedBox(height: 16),
+          ElevatedButton(onPressed: _loadAllData, child: const Text('Retry')),
         ],
       ),
     );
   }
 
-  Future<void> _selectDate(bool isStartDate) async {
-    final selectedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now(),
-    );
-
-    if (selectedDate != null) {
-      setState(() {
-        if (isStartDate) {
-          _startDate = selectedDate;
-        } else {
-          _endDate = selectedDate;
-        }
-      });
-    }
-  }
-
-  Future<void> _generateReport(ReportTemplate template) async {
-    setState(() => _isLoading = true);
-
-    try {
-      String startDate, endDate;
-
-      if (_selectedPeriod == 'custom') {
-        if (_startDate == null || _endDate == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please select both start and end dates'),
-            ),
-          );
-          return;
-        }
-        startDate = _startDate!.toIso8601String();
-        endDate = _endDate!.toIso8601String();
-      } else {
-        final days = int.parse(_selectedPeriod);
-        endDate = DateTime.now().toIso8601String();
-        startDate =
-            DateTime.now().subtract(Duration(days: days)).toIso8601String();
-      }
-
-      // Generate comprehensive report with real data
-      final reportData = await _fetchReportData(
-        template.id,
-        startDate,
-        endDate,
-      );
-
-      if (reportData != null) {
-        // Create a new generated report entry
-        final newReport = GeneratedReport(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: '${template.name} - ${_formatDateRange(startDate, endDate)}',
-          status: 'Completed',
-          generatedAt: DateTime.now(),
-          period: _getPeriodDescription(),
-        );
-
-        // Add to generated reports list
-        _generatedReports.insert(0, newReport);
-
-        // Show report preview dialog
-        _showReportPreview(template, reportData);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report generated successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to generate report - no data available'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating report: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _handleReportAction(GeneratedReport report, String action) {
-    switch (action) {
-      case 'view':
-        _viewReport(report);
-        break;
-      case 'download':
-        _downloadReport(report);
-        break;
-      case 'share':
-        _shareReport(report);
-        break;
-      case 'delete':
-        _deleteReport(report);
-        break;
-    }
-  }
-
-  void _viewReport(GeneratedReport report) {
-    // TODO: Navigate to report view screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('View ${report.name} - Coming Soon')),
-    );
-  }
-
-  void _downloadReport(GeneratedReport report) {
-    // TODO: Implement report download
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Download ${report.name} - Coming Soon')),
-    );
-  }
-
-  void _shareReport(GeneratedReport report) {
-    // TODO: Implement report sharing
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Share ${report.name} - Coming Soon')),
-    );
-  }
-
-  void _deleteReport(GeneratedReport report) {
-    // TODO: Implement report deletion
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Delete ${report.name} - Coming Soon')),
-    );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return AppColors.success;
-      case 'processing':
-        return AppColors.warning;
-      case 'failed':
-        return AppColors.error;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return Icons.check_circle;
-      case 'processing':
-        return Icons.hourglass_empty;
-      case 'failed':
-        return Icons.error;
-      default:
-        return Icons.help;
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDateRange(String startDate, String endDate) {
-    final start = DateTime.parse(startDate);
-    final end = DateTime.parse(endDate);
-    return '${start.day}/${start.month}/${start.year} - ${end.day}/${end.month}/${end.year}';
-  }
-
-  String _getPeriodDescription() {
-    if (_selectedPeriod == 'custom') {
-      return 'Custom Range';
-    } else {
-      final days = int.parse(_selectedPeriod);
-      return 'Last $days days';
-    }
-  }
-
-  Future<Map<String, dynamic>?> _fetchReportData(
-    String templateId,
-    String startDate,
-    String endDate,
-  ) async {
-    try {
-      switch (templateId) {
-        case 'user_activity': // User Activity Report
-          return await _fetchUserActivityData(startDate, endDate);
-        case 'health_records': // Health Records Summary
-          return await _fetchHealthRecordsData(startDate, endDate);
-        case 'appointments': // Appointment Analytics
-          return await _fetchAppointmentData(startDate, endDate);
-        case 'facilities': // Health Facilities Report
-          return await _fetchFacilitiesData(startDate, endDate);
-        case 'system_performance': // System Performance
-          return await _fetchSystemPerformanceData(startDate, endDate);
-        default:
-          return null;
-      }
-    } catch (e) {
-      return null;
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchUserActivityData(
-    String startDate,
-    String endDate,
-  ) async {
-    try {
-      // Fetch dashboard stats
-      final dashboardResponse = await ApiService.instance.getDashboardStats();
-
-      // Fetch analytics data
-      final days =
-          _selectedPeriod == 'custom' ? 30 : int.parse(_selectedPeriod);
-      final analyticsResponse = await ApiService.instance.getAnalytics(
-        days: days,
-      );
-
-      Map<String, dynamic> dashboardData = {};
-      Map<String, dynamic> analyticsData = {};
-
-      if (dashboardResponse.success && dashboardResponse.data != null) {
-        dashboardData = dashboardResponse.data['stats'] ?? {};
-      }
-
-      if (analyticsResponse.success && analyticsResponse.data != null) {
-        analyticsData = analyticsResponse.data['analytics'] ?? {};
-      }
-
-      return {
-        'title': 'User Activity Report',
-        'generatedAt': DateTime.now().toIso8601String(),
-        'period': _getPeriodDescription(),
-        'summary': {
-          'totalUsers': dashboardData['totalUsers'] ?? 0,
-          'totalClients': dashboardData['totalClients'] ?? 0,
-          'totalHealthWorkers': dashboardData['totalHealthWorkers'] ?? 0,
-          'totalAdmins': dashboardData['totalAdmins'] ?? 0,
-          'activeUsers': analyticsData['activeUsers'] ?? 0,
-          'newUsersThisMonth': analyticsData['newUsersThisMonth'] ?? 0,
-        },
-        'usersByRole': analyticsData['usersByRole'] ?? [],
-        'insights': [
-          'Total registered users: ${dashboardData['totalUsers'] ?? 0}',
-          'Active users: ${analyticsData['activeUsers'] ?? 0}',
-          'New users this month: ${analyticsData['newUsersThisMonth'] ?? 0}',
-          'User distribution: ${dashboardData['totalClients'] ?? 0} clients, ${dashboardData['totalHealthWorkers'] ?? 0} health workers',
+  Widget _buildReportsContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSystemOverview(),
+          const SizedBox(height: 24),
+          _buildUsersReport(),
+          const SizedBox(height: 24),
+          _buildFacilitiesReport(),
+          const SizedBox(height: 24),
+          _buildHealthRecordsReport(),
+          const SizedBox(height: 24),
+          _buildAppointmentsReport(),
         ],
-      };
-    } catch (e) {
-      return {
-        'title': 'User Activity Report',
-        'error': 'Failed to fetch user activity data: $e',
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchHealthRecordsData(
-    String startDate,
-    String endDate,
-  ) async {
-    try {
-      // Fetch dashboard stats for health records
-      final dashboardResponse = await ApiService.instance.getDashboardStats();
-
-      // Fetch health facilities data
-      final facilitiesResponse =
-          await ApiService.instance.getHealthFacilities();
-
-      Map<String, dynamic> dashboardData = {};
-      List<dynamic> facilitiesData = [];
-
-      if (dashboardResponse.success && dashboardResponse.data != null) {
-        dashboardData = dashboardResponse.data['stats'] ?? {};
-      }
-
-      if (facilitiesResponse.success && facilitiesResponse.data != null) {
-        if (facilitiesResponse.data is Map<String, dynamic>) {
-          facilitiesData = facilitiesResponse.data['data'] ?? [];
-        }
-      }
-
-      return {
-        'title': 'Health Records Report',
-        'generatedAt': DateTime.now().toIso8601String(),
-        'period': _getPeriodDescription(),
-        'summary': {
-          'totalHealthRecords': dashboardData['totalHealthRecords'] ?? 0,
-          'totalFacilities': dashboardData['totalFacilities'] ?? 0,
-          'activeFacilities':
-              facilitiesData.where((f) => f['isActive'] == true).length,
-        },
-        'facilityBreakdown':
-            facilitiesData
-                .map(
-                  (facility) => {
-                    'name': facility['name'] ?? 'Unknown',
-                    'type': facility['facilityType'] ?? 'Unknown',
-                    'isActive': facility['isActive'] ?? false,
-                  },
-                )
-                .toList(),
-        'insights': [
-          'Total health records: ${dashboardData['totalHealthRecords'] ?? 0}',
-          'Total facilities: ${dashboardData['totalFacilities'] ?? 0}',
-          'Active facilities: ${facilitiesData.where((f) => f['isActive'] == true).length}',
-          'Facility types: ${facilitiesData.map((f) => f['facilityType']).toSet().length} different types',
-        ],
-      };
-    } catch (e) {
-      return {
-        'title': 'Health Records Report',
-        'error': 'Failed to fetch health records data: $e',
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchAppointmentData(
-    String startDate,
-    String endDate,
-  ) async {
-    try {
-      // Fetch dashboard stats for appointments
-      final dashboardResponse = await ApiService.instance.getDashboardStats();
-
-      // Fetch health facilities data for appointment distribution
-      final facilitiesResponse =
-          await ApiService.instance.getHealthFacilities();
-
-      Map<String, dynamic> dashboardData = {};
-      List<dynamic> facilitiesData = [];
-
-      if (dashboardResponse.success && dashboardResponse.data != null) {
-        dashboardData = dashboardResponse.data['stats'] ?? {};
-      }
-
-      if (facilitiesResponse.success && facilitiesResponse.data != null) {
-        if (facilitiesResponse.data is Map<String, dynamic>) {
-          facilitiesData = facilitiesResponse.data['data'] ?? [];
-        }
-      }
-
-      return {
-        'title': 'Appointment Analytics Report',
-        'generatedAt': DateTime.now().toIso8601String(),
-        'period': _getPeriodDescription(),
-        'summary': {
-          'totalAppointments': dashboardData['totalAppointments'] ?? 0,
-          'totalFacilities': dashboardData['totalFacilities'] ?? 0,
-          'averageAppointmentsPerFacility':
-              facilitiesData.isNotEmpty
-                  ? (dashboardData['totalAppointments'] ?? 0) /
-                      facilitiesData.length
-                  : 0,
-        },
-        'facilityDistribution':
-            facilitiesData
-                .map(
-                  (facility) => {
-                    'name': facility['name'] ?? 'Unknown',
-                    'type': facility['facilityType'] ?? 'Unknown',
-                    'isActive': facility['isActive'] ?? false,
-                  },
-                )
-                .toList(),
-        'insights': [
-          'Total appointments: ${dashboardData['totalAppointments'] ?? 0}',
-          'Available facilities: ${dashboardData['totalFacilities'] ?? 0}',
-          'Average appointments per facility: ${facilitiesData.isNotEmpty ? ((dashboardData['totalAppointments'] ?? 0) / facilitiesData.length).toStringAsFixed(1) : '0'}',
-          'Active facilities: ${facilitiesData.where((f) => f['isActive'] == true).length}',
-        ],
-      };
-    } catch (e) {
-      return {
-        'title': 'Appointment Analytics Report',
-        'error': 'Failed to fetch appointment data: $e',
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchFacilitiesData(
-    String startDate,
-    String endDate,
-  ) async {
-    try {
-      // Fetch health facilities data
-      final facilitiesResponse =
-          await ApiService.instance.getHealthFacilities();
-
-      // Fetch dashboard stats for additional context
-      final dashboardResponse = await ApiService.instance.getDashboardStats();
-
-      List<dynamic> facilitiesData = [];
-      Map<String, dynamic> dashboardData = {};
-
-      if (facilitiesResponse.success && facilitiesResponse.data != null) {
-        if (facilitiesResponse.data is Map<String, dynamic>) {
-          facilitiesData = facilitiesResponse.data['data'] ?? [];
-        }
-      }
-
-      if (dashboardResponse.success && dashboardResponse.data != null) {
-        dashboardData = dashboardResponse.data['stats'] ?? {};
-      }
-
-      // Analyze facility data
-      final activeFacilities =
-          facilitiesData.where((f) => f['isActive'] == true).length;
-      final facilityTypes =
-          facilitiesData.map((f) => f['facilityType']).toSet().toList();
-      final facilitiesByType = <String, int>{};
-
-      for (final facility in facilitiesData) {
-        final type = facility['facilityType'] ?? 'Unknown';
-        facilitiesByType[type] = (facilitiesByType[type] ?? 0) + 1;
-      }
-
-      return {
-        'title': 'Health Facilities Report',
-        'generatedAt': DateTime.now().toIso8601String(),
-        'period': _getPeriodDescription(),
-        'summary': {
-          'totalFacilities': facilitiesData.length,
-          'activeFacilities': activeFacilities,
-          'inactiveFacilities': facilitiesData.length - activeFacilities,
-          'facilityTypes': facilityTypes.length,
-          'averageCapacity':
-              facilitiesData.isNotEmpty
-                  ? facilitiesData
-                          .map((f) => f['capacity'] ?? 0)
-                          .reduce((a, b) => a + b) /
-                      facilitiesData.length
-                  : 0,
-        },
-        'facilityBreakdown':
-            facilitiesData
-                .map(
-                  (facility) => {
-                    'name': facility['name'] ?? 'Unknown',
-                    'type': facility['facilityType'] ?? 'Unknown',
-                    'isActive': facility['isActive'] ?? false,
-                    'location': facility['location'] ?? 'Unknown',
-                  },
-                )
-                .toList(),
-        'typeDistribution': facilitiesByType,
-        'insights': [
-          'Total facilities: ${facilitiesData.length}',
-          'Active facilities: $activeFacilities (${facilitiesData.isNotEmpty ? (activeFacilities / facilitiesData.length * 100).toStringAsFixed(1) : 0}%)',
-          'Facility types: ${facilityTypes.length} different types',
-          'Most common type: ${facilitiesByType.isNotEmpty ? facilitiesByType.entries.reduce((a, b) => a.value > b.value ? a : b).key : 'None'}',
-        ],
-      };
-    } catch (e) {
-      return {
-        'title': 'Health Facilities Report',
-        'error': 'Failed to fetch facilities data: $e',
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchSystemPerformanceData(
-    String startDate,
-    String endDate,
-  ) async {
-    try {
-      // Fetch dashboard stats for system overview
-      final dashboardResponse = await ApiService.instance.getDashboardStats();
-
-      // Fetch analytics data for performance metrics
-      final days =
-          _selectedPeriod == 'custom' ? 30 : int.parse(_selectedPeriod);
-      final analyticsResponse = await ApiService.instance.getAnalytics(
-        days: days,
-      );
-
-      Map<String, dynamic> dashboardData = {};
-      Map<String, dynamic> analyticsData = {};
-
-      if (dashboardResponse.success && dashboardResponse.data != null) {
-        dashboardData = dashboardResponse.data['stats'] ?? {};
-      }
-
-      if (analyticsResponse.success && analyticsResponse.data != null) {
-        analyticsData = analyticsResponse.data['analytics'] ?? {};
-      }
-
-      // Calculate system health metrics
-      final totalUsers = dashboardData['totalUsers'] ?? 0;
-      final activeUsers = analyticsData['activeUsers'] ?? 0;
-      final userEngagementRate =
-          totalUsers > 0 ? (activeUsers / totalUsers * 100) : 0;
-
-      return {
-        'title': 'System Performance Report',
-        'generatedAt': DateTime.now().toIso8601String(),
-        'period': _getPeriodDescription(),
-        'summary': {
-          'totalUsers': totalUsers,
-          'activeUsers': activeUsers,
-          'userEngagementRate': userEngagementRate,
-          'totalHealthRecords': dashboardData['totalHealthRecords'] ?? 0,
-          'totalAppointments': dashboardData['totalAppointments'] ?? 0,
-          'totalFacilities': dashboardData['totalFacilities'] ?? 0,
-        },
-        'systemHealth': {
-          'userEngagement':
-              userEngagementRate > 70
-                  ? 'Excellent'
-                  : userEngagementRate > 50
-                  ? 'Good'
-                  : 'Needs Improvement',
-          'dataGrowth': 'Steady',
-          'systemStability': 'Stable',
-        },
-        'insights': [
-          'User engagement rate: ${userEngagementRate.toStringAsFixed(1)}%',
-          'Total system entities: ${(dashboardData['totalUsers'] ?? 0) + (dashboardData['totalHealthRecords'] ?? 0) + (dashboardData['totalAppointments'] ?? 0)}',
-          'Active facilities: ${dashboardData['totalFacilities'] ?? 0}',
-          'System health: ${userEngagementRate > 70
-              ? 'Excellent'
-              : userEngagementRate > 50
-              ? 'Good'
-              : 'Needs Improvement'}',
-        ],
-      };
-    } catch (e) {
-      return {
-        'title': 'System Performance Report',
-        'error': 'Failed to fetch system performance data: $e',
-      };
-    }
-  }
-
-  void _showReportPreview(
-    ReportTemplate template,
-    Map<String, dynamic> reportData,
-  ) {
-    showDialog(
-      context: context,
-      builder:
-          (context) =>
-              _ReportPreviewDialog(template: template, reportData: reportData),
+      ),
     );
   }
-}
 
-class ReportTemplate {
-  final String id;
-  final String name;
-  final String description;
-  final IconData icon;
-  final Color color;
-
-  ReportTemplate({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.icon,
-    required this.color,
-  });
-
-  factory ReportTemplate.fromJson(Map<String, dynamic> json) {
-    return ReportTemplate(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      description: json['description'] ?? '',
-      icon: Icons.assessment, // Default icon
-      color: AppColors.primary, // Default color
-    );
-  }
-}
-
-class GeneratedReport {
-  final String id;
-  final String name;
-  final String status;
-  final DateTime generatedAt;
-  final String period;
-
-  GeneratedReport({
-    required this.id,
-    required this.name,
-    required this.status,
-    required this.generatedAt,
-    required this.period,
-  });
-
-  factory GeneratedReport.fromJson(Map<String, dynamic> json) {
-    return GeneratedReport(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      status: json['status'] ?? '',
-      generatedAt:
-          DateTime.tryParse(json['generatedAt'] ?? '') ?? DateTime.now(),
-      period: json['period'] ?? '',
-    );
-  }
-}
-
-/// Report Preview Dialog Widget
-class _ReportPreviewDialog extends StatelessWidget {
-  final ReportTemplate template;
-  final Map<String, dynamic> reportData;
-
-  const _ReportPreviewDialog({
-    required this.template,
-    required this.reportData,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(24),
+  Widget _buildSystemOverview() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(template.icon, color: template.color, size: 32),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        reportData['title'] ?? template.name,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Generated: ${_formatDateTime(reportData['generatedAt'])}',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+                Icon(Icons.dashboard, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'System Overview',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ],
-            ),
-            const Divider(height: 32),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (reportData.containsKey('error'))
-                      _buildErrorSection(reportData['error'])
-                    else ...[
-                      _buildSummarySection(reportData['summary']),
-                      const SizedBox(height: 24),
-                      _buildInsightsSection(reportData['insights']),
-                      if (reportData.containsKey('usersByRole')) ...[
-                        const SizedBox(height: 24),
-                        _buildUsersByRoleSection(reportData['usersByRole']),
-                      ],
-                      if (reportData.containsKey('facilityBreakdown')) ...[
-                        const SizedBox(height: 24),
-                        _buildFacilityBreakdownSection(
-                          reportData['facilityBreakdown'],
-                        ),
-                      ],
-                      if (reportData.containsKey('systemHealth')) ...[
-                        const SizedBox(height: 24),
-                        _buildSystemHealthSection(reportData['systemHealth']),
-                      ],
-                    ],
-                  ],
-                ),
-              ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _exportReport(context),
-                    icon: const Icon(Icons.download),
-                    label: const Text('Export PDF'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.check),
-                    label: const Text('Done'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            if (_dashboardStats != null) ...[
+              _buildStatRow(
+                'Total Users',
+                _dashboardStats!['totalUsers']?.toString() ?? '0',
+              ),
+              _buildStatRow(
+                'Total Clients',
+                _dashboardStats!['totalClients']?.toString() ?? '0',
+              ),
+              _buildStatRow(
+                'Health Workers',
+                _dashboardStats!['totalHealthWorkers']?.toString() ?? '0',
+              ),
+              _buildStatRow(
+                'Administrators',
+                _dashboardStats!['totalAdmins']?.toString() ?? '0',
+              ),
+              _buildStatRow(
+                'Health Facilities',
+                _dashboardStats!['totalFacilities']?.toString() ?? '0',
+              ),
+              _buildStatRow(
+                'Health Records',
+                _dashboardStats!['totalHealthRecords']?.toString() ?? '0',
+              ),
+              _buildStatRow(
+                'Total Appointments',
+                _dashboardStats!['totalAppointments']?.toString() ?? '0',
+              ),
+            ] else
+              const Text('No dashboard data available'),
           ],
         ),
       ),
     );
   }
 
-  String _formatDateTime(String? dateTimeStr) {
-    if (dateTimeStr == null) return 'Unknown';
-    try {
-      final dateTime = DateTime.parse(dateTimeStr);
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return 'Unknown';
-    }
-  }
-
-  Widget _buildErrorSection(String error) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(Icons.error, color: AppColors.error),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(error, style: TextStyle(color: AppColors.error)),
+          Text(label, style: TextStyle(color: AppColors.textSecondary)),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSummarySection(Map<String, dynamic>? summary) {
-    if (summary == null) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Summary',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildUsersReport() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.people, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Users Report',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_analyticsData != null) ...[
+              _buildStatRow(
+                'Active Users',
+                _analyticsData!['activeUsers']?.toString() ?? '0',
+              ),
+              _buildStatRow(
+                'New Users This Month',
+                _analyticsData!['newUsersThisMonth']?.toString() ?? '0',
+              ),
+              if (_analyticsData!['usersByRole'] != null) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Users by Role:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                ..._buildUsersByRole(_analyticsData!['usersByRole']),
+              ],
+            ] else
+              const Text('No analytics data available'),
+          ],
         ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            children:
-                summary.entries.map((entry) {
+      ),
+    );
+  }
+
+  List<Widget> _buildUsersByRole(dynamic usersByRole) {
+    try {
+      if (usersByRole is List) {
+        return usersByRole.map<Widget>((roleData) {
+          try {
+            if (roleData is List && roleData.length >= 2) {
+              // Handle array format: [["admin", 1], ["client", 1]]
+              return _buildStatRow(
+                _formatRoleName(roleData[0].toString()),
+                roleData[1].toString(),
+              );
+            } else if (roleData is Map<String, dynamic>) {
+              // Handle object format: {'role': 'Client', 'count': 1}
+              return _buildStatRow(
+                _formatRoleName(roleData['role']?.toString() ?? ''),
+                roleData['count']?.toString() ?? '0',
+              );
+            }
+            return const SizedBox.shrink();
+          } catch (e) {
+            print('Error processing role data: $e');
+            return const SizedBox.shrink();
+          }
+        }).toList();
+      } else if (usersByRole is Map<String, dynamic>) {
+        // Handle map format: {"admin": 1, "client": 2}
+        return usersByRole.entries.map<Widget>((entry) {
+          return _buildStatRow(
+            _formatRoleName(entry.key),
+            entry.value.toString(),
+          );
+        }).toList();
+      }
+      return [const Text('Invalid role data format')];
+    } catch (e) {
+      print('Error in _buildUsersByRole: $e');
+      return [Text('Error displaying role data: $e')];
+    }
+  }
+
+  String _formatRoleName(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'Administrators';
+      case 'client':
+        return 'Clients';
+      case 'healthworker':
+      case 'health_worker':
+        return 'Health Workers';
+      default:
+        return role;
+    }
+  }
+
+  Widget _buildFacilitiesReport() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.local_hospital, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Health Facilities Report',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_facilities != null) ...[
+              _buildStatRow('Total Facilities', _facilities!.length.toString()),
+              if (_facilities!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Recent Facilities:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                ..._facilities!.take(3).map((facility) {
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _formatKey(entry.key),
-                          style: TextStyle(color: AppColors.textSecondary),
+                        Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: AppColors.textSecondary,
                         ),
-                        Text(
-                          _formatValue(entry.value),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            facility['name']?.toString() ?? 'Unknown Facility',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
                         ),
                       ],
                     ),
                   );
                 }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInsightsSection(List<dynamic>? insights) {
-    if (insights == null || insights.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Key Insights',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        ...insights.map(
-          (insight) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.insights, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Expanded(child: Text(insight.toString())),
               ],
-            ),
-          ),
+            ] else
+              const Text('No facilities data available'),
+          ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildUsersByRoleSection(List<dynamic>? usersByRole) {
-    if (usersByRole == null || usersByRole.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Users by Role',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        ...usersByRole.map((roleData) {
-          if (roleData is List && roleData.length >= 2) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(_formatKey(roleData[0].toString())),
-                  Text(
-                    roleData[1].toString(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        }),
-      ],
-    );
-  }
-
-  Widget _buildFacilityBreakdownSection(List<dynamic>? facilityBreakdown) {
-    if (facilityBreakdown == null || facilityBreakdown.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Facility Breakdown',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        ...facilityBreakdown.take(5).map((facility) {
-          if (facility is Map<String, dynamic>) {
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              child: ListTile(
-                title: Text(facility['name'] ?? 'Unknown'),
-                subtitle: Text(facility['type'] ?? 'Unknown'),
-                trailing: Icon(
-                  facility['isActive'] == true
-                      ? Icons.check_circle
-                      : Icons.cancel,
-                  color:
-                      facility['isActive'] == true
-                          ? AppColors.success
-                          : AppColors.error,
-                ),
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        }),
-        if (facilityBreakdown.length > 5)
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              '... and ${facilityBreakdown.length - 5} more facilities',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildSystemHealthSection(Map<String, dynamic>? systemHealth) {
-    if (systemHealth == null) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'System Health',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        ...systemHealth.entries.map((entry) {
-          Color statusColor = AppColors.success;
-          if (entry.value.toString().toLowerCase().contains(
-            'needs improvement',
-          )) {
-            statusColor = AppColors.error;
-          } else if (entry.value.toString().toLowerCase().contains('good')) {
-            statusColor = AppColors.warning;
-          }
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(_formatKey(entry.key)),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    entry.value.toString(),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  String _formatKey(String key) {
-    return key
-        .replaceAllMapped(RegExp(r'([A-Z])'), (match) => ' ${match.group(0)}')
-        .trim()
-        .split(' ')
-        .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
-        .join(' ');
-  }
-
-  String _formatValue(dynamic value) {
-    if (value is double) {
-      return value.toStringAsFixed(1);
-    }
-    return value.toString();
-  }
-
-  void _exportReport(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Export functionality coming soon!'),
-        backgroundColor: AppColors.warning,
       ),
     );
+  }
+
+  Widget _buildHealthRecordsReport() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.medical_information, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Health Records Report',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_healthRecords != null) ...[
+              _buildStatRow(
+                'Total Health Records',
+                _healthRecords!.length.toString(),
+              ),
+              if (_healthRecords!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Record Types:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                ..._getRecordTypeCounts().entries.map((entry) {
+                  return _buildStatRow(entry.key, entry.value.toString());
+                }).toList(),
+              ],
+            ] else
+              const Text('No health records data available'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppointmentsReport() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.event, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Appointments Report',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_appointments != null) ...[
+              _buildStatRow(
+                'Total Appointments',
+                _appointments!.length.toString(),
+              ),
+              if (_appointments!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Appointment Status:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                ..._getAppointmentStatusCounts().entries.map((entry) {
+                  return _buildStatRow(entry.key, entry.value.toString());
+                }).toList(),
+              ],
+            ] else
+              const Text('No appointments data available'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<String, int> _getRecordTypeCounts() {
+    if (_healthRecords == null) return {};
+
+    Map<String, int> counts = {};
+    for (var record in _healthRecords!) {
+      String type = record['type']?.toString() ?? 'Unknown';
+      counts[type] = (counts[type] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  Map<String, int> _getAppointmentStatusCounts() {
+    if (_appointments == null) return {};
+
+    Map<String, int> counts = {};
+    for (var appointment in _appointments!) {
+      String status = appointment['status']?.toString() ?? 'Unknown';
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  /// Get health records using admin endpoint
+  Future<ApiResponse> _getAdminHealthRecords() async {
+    try {
+      final response = await ApiService.instance.dio.get('/health-records');
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return ApiResponse.error(message: 'Failed to fetch health records: $e');
+    }
   }
 }

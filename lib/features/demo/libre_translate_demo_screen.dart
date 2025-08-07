@@ -11,10 +11,12 @@ class LibreTranslateDemoScreen extends ConsumerStatefulWidget {
   const LibreTranslateDemoScreen({super.key});
 
   @override
-  ConsumerState<LibreTranslateDemoScreen> createState() => _LibreTranslateDemoScreenState();
+  ConsumerState<LibreTranslateDemoScreen> createState() =>
+      _LibreTranslateDemoScreenState();
 }
 
-class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScreen> {
+class _LibreTranslateDemoScreenState
+    extends ConsumerState<LibreTranslateDemoScreen> {
   final TextEditingController _textController = TextEditingController();
   String _customText = '';
 
@@ -34,9 +36,7 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
         title: 'LibreTranslate Demo'.trd(),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        actions: const [
-          DynamicLanguageAppBarAction(),
-        ],
+        actions: const [DynamicLanguageAppBarAction()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -45,7 +45,7 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
           children: [
             // Service Status Card
             _buildServiceStatusCard(translationState, translationNotifier),
-            
+
             const SizedBox(height: 24),
 
             // Language Selector
@@ -62,9 +62,7 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const DynamicLanguageSelector(
-                      showServiceStatus: true,
-                    ),
+                    const DynamicLanguageSelector(showServiceStatus: true),
                   ],
                 ),
               ),
@@ -111,8 +109,8 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
                     TextField(
                       controller: _textController,
                       decoration: InputDecoration(
-                        labelText: 'Enter text to translate'.trd(),
-                        hintText: 'Type something in English...'.trd(),
+                        labelText: 'Enter text to translate',
+                        hintText: 'Type something in English...',
                         border: const OutlineInputBorder(),
                       ),
                       maxLines: 3,
@@ -128,9 +126,15 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withAlpha(
+                            (0.1 * 255).toInt(),
+                          ),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                          border: Border.all(
+                            color: AppColors.primary.withAlpha(
+                              (0.3 * 255).toInt(),
+                            ),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +214,8 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
     DynamicTranslationNotifier notifier,
   ) {
     return Card(
-      color: state.isServiceAvailable ? Colors.green.shade50 : Colors.red.shade50,
+      color:
+          state.isServiceAvailable ? Colors.green.shade50 : Colors.red.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -225,28 +230,31 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  (state.isServiceAvailable 
-                    ? 'LibreTranslate Service Online' 
-                    : 'LibreTranslate Service Offline').trd(
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: state.isServiceAvailable ? Colors.green : Colors.red,
-                    ),
-                  ),
+                  (state.isServiceAvailable
+                          ? 'LibreTranslate Service Online'
+                          : 'LibreTranslate Service Offline')
+                      .trd(
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              state.isServiceAvailable
+                                  ? Colors.green
+                                  : Colors.red,
+                        ),
+                      ),
                   const SizedBox(height: 4),
-                  (state.isServiceAvailable 
-                    ? 'Real-time translation available' 
-                    : 'Using cached translations only').trd(
-                    style: const TextStyle(fontSize: 14),
-                  ),
+                  (state.isServiceAvailable
+                          ? 'Real-time translation available'
+                          : 'Using cached translations only')
+                      .trd(style: const TextStyle(fontSize: 14)),
                 ],
               ),
             ),
             IconButton(
               onPressed: () => notifier.refreshServiceAvailability(),
               icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh status'.trd(),
+              tooltip: 'Refresh status',
             ),
           ],
         ),
@@ -267,63 +275,63 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
     ];
 
     return Column(
-      children: sampleTexts.map((text) => 
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Original: $text',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
+      children:
+          sampleTexts
+              .map(
+                (text) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Original: $text',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        text.trd(
+                          style: const TextStyle(fontSize: 16),
+                          showLoadingIndicator: true,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                text.trd(
-                  style: const TextStyle(fontSize: 16),
-                  showLoadingIndicator: true,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ).toList(),
+              )
+              .toList(),
     );
   }
 
   Widget _buildBatchTranslationDemo() {
-    final batchTexts = [
-      'Save',
-      'Cancel',
-      'Delete',
-      'Edit',
-      'Refresh',
-    ];
+    final batchTexts = ['Save', 'Cancel', 'Delete', 'Edit', 'Refresh'];
 
     return DynamicBatchTranslatedWidget(
       texts: batchTexts,
-      loadingWidget: const Center(
-        child: CircularProgressIndicator(),
-      ),
+      loadingWidget: const Center(child: CircularProgressIndicator()),
       builder: (translatedTexts) {
         return Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: translatedTexts.map((text) => 
-            Chip(
-              label: Text(text),
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-            ),
-          ).toList(),
+          children:
+              translatedTexts
+                  .map(
+                    (text) => Chip(
+                      label: Text(text),
+                      backgroundColor: AppColors.primary.withAlpha(
+                        (0.1 * 255).toInt(),
+                      ),
+                    ),
+                  )
+                  .toList(),
         );
       },
     );
@@ -342,7 +350,10 @@ class _LibreTranslateDemoScreenState extends ConsumerState<LibreTranslateDemoScr
           children: [
             _buildStatRow('Cache Size', '${stats['cacheSize']} translations'),
             _buildStatRow('Current Language', stats['currentLanguage']),
-            _buildStatRow('Service Status', stats['isServiceAvailable'] ? 'Online' : 'Offline'),
+            _buildStatRow(
+              'Service Status',
+              stats['isServiceAvailable'] ? 'Online' : 'Offline',
+            ),
             _buildStatRow('Memory Cache', '${stats['memoryCache']} items'),
             const SizedBox(height: 16),
             ElevatedButton(

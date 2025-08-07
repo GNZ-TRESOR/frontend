@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../core/models/side_effect.dart';
-import '../../../core/providers/side_effects_provider.dart';
+import '../../../core/providers/side_effects_provider.dart' as side_effects;
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/contraception_provider.dart';
 import '../../../core/utils/localization_helper.dart';
@@ -33,10 +33,12 @@ class _SideEffectsTabState extends ConsumerState<SideEffectsTab> {
     final user = ref.read(currentUserProvider);
     if (user?.id != null) {
       if (widget.isHealthWorker) {
-        ref.read(sideEffectsProvider.notifier).loadAllSideEffects();
+        ref
+            .read(side_effects.sideEffectsProvider.notifier)
+            .loadAllSideEffects();
       } else {
         ref
-            .read(sideEffectsProvider.notifier)
+            .read(side_effects.sideEffectsProvider.notifier)
             .loadUserSideEffects(userId: user!.id!);
       }
     }
@@ -45,7 +47,7 @@ class _SideEffectsTabState extends ConsumerState<SideEffectsTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final sideEffectsState = ref.watch(sideEffectsProvider);
+    final sideEffectsState = ref.watch(side_effects.sideEffectsProvider);
     final contraceptionState = ref.watch(contraceptionProvider);
 
     return LoadingOverlay(
@@ -111,13 +113,15 @@ class _SideEffectsTabState extends ConsumerState<SideEffectsTab> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        sideEffectsState.error!,
+                        sideEffectsState.error.toString(),
                         style: TextStyle(color: Colors.red.shade700),
                       ),
                     ),
                     TextButton(
                       onPressed: () {
-                        ref.read(sideEffectsProvider.notifier).clearError();
+                        ref
+                            .read(side_effects.sideEffectsProvider.notifier)
+                            .clearError();
                         _loadSideEffects();
                       },
                       child: Text(l10n.retry),
@@ -412,7 +416,9 @@ class _SideEffectsTabState extends ConsumerState<SideEffectsTab> {
   void _showAddSideEffectDialog() {
     final contraceptionState = ref.read(contraceptionProvider);
     final activeMethods =
-        contraceptionState.userMethods.where((m) => m.isActive).toList();
+        contraceptionState.userMethods
+            .where((m) => m.isActive == true)
+            .toList();
 
     if (activeMethods.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -426,12 +432,10 @@ class _SideEffectsTabState extends ConsumerState<SideEffectsTab> {
 
     // Use the first active method or show selection if multiple
     final methodId = activeMethods.first.id;
-    if (methodId != null) {
-      showDialog(
-        context: context,
-        builder: (context) => SimpleSideEffectForm(onSuccess: _loadSideEffects),
-      );
-    }
+    showDialog(
+      context: context,
+      builder: (context) => SimpleSideEffectForm(onSuccess: _loadSideEffects),
+    );
   }
 
   void _showEditSideEffectDialog(SideEffectReport report) {
@@ -461,7 +465,7 @@ class _SideEffectsTabState extends ConsumerState<SideEffectsTab> {
                   final user = ref.read(currentUserProvider);
                   if (user?.id != null && report.id != null) {
                     await ref
-                        .read(sideEffectsProvider.notifier)
+                        .read(side_effects.sideEffectsProvider.notifier)
                         .deleteSideEffectReport(report.id!, user!.id!);
                   }
                 },

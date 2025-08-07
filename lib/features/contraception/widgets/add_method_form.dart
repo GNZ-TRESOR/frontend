@@ -122,59 +122,45 @@ class _AddMethodFormState extends ConsumerState<AddMethodForm> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
-      final success = await ref
-          .read(contraceptionProvider.notifier)
-          .addMethod(
-            userId: user!.id!,
-            type: _selectedType!,
-            name: _selectedMethodName!,
-            description:
-                _descriptionController.text.trim().isEmpty
-                    ? null
-                    : _descriptionController.text.trim(),
-            startDate: _startDate,
-            endDate: _endDate,
-            effectiveness:
-                _effectivenessController.text.trim().isEmpty
-                    ? null
-                    : double.tryParse(_effectivenessController.text.trim()),
-            instructions:
-                _instructionsController.text.trim().isEmpty
-                    ? null
-                    : _instructionsController.text.trim(),
-            prescribedBy:
-                _prescribedByController.text.trim().isEmpty
-                    ? null
-                    : _prescribedByController.text.trim(),
-            nextAppointment: _nextAppointment,
-            isActive: _isActive,
-          );
+      final method = ContraceptionMethod(
+        id: 0, // Will be set by backend
+        name: _selectedMethodName!,
+        type: _selectedType!,
+        description:
+            _descriptionController.text.trim().isEmpty
+                ? null
+                : _descriptionController.text.trim(),
+        startDate: _startDate,
+        isActive: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-      if (success) {
-        // Clear form
-        _formKey.currentState!.reset();
-        setState(() {
-          _selectedType = null;
-          _selectedMethodName = null;
-          _startDate = null;
-          _endDate = null;
-          _nextAppointment = null;
-          _isActive = true;
-          _availableMethodNames = [];
-        });
-        _descriptionController.clear();
-        _effectivenessController.clear();
-        _instructionsController.clear();
-        _prescribedByController.clear();
+      await ref.read(contraceptionProvider.notifier).addMethod(method);
 
-        if (mounted) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Contraception method added successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+      // Success - clear form
+      _formKey.currentState!.reset();
+      setState(() {
+        _selectedType = null;
+        _selectedMethodName = null;
+        _startDate = null;
+        _endDate = null;
+        _nextAppointment = null;
+        _isActive = true;
+        _availableMethodNames = [];
+      });
+      _descriptionController.clear();
+      _effectivenessController.clear();
+      _instructionsController.clear();
+      _prescribedByController.clear();
+
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Contraception method added successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

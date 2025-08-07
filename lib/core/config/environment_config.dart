@@ -8,6 +8,14 @@ class EnvironmentConfig {
   static const Environment _currentEnvironment =
       kDebugMode ? Environment.development : Environment.production;
 
+  static String? _overriddenBaseUrl;
+
+  /// Override the API base URL (for development and testing)
+  static void setBaseUrl(String url) {
+    _overriddenBaseUrl = url;
+    debugPrint('🔧 API base URL overridden to: $url');
+  }
+
   /// Get current environment
   static Environment get currentEnvironment => _currentEnvironment;
 
@@ -23,13 +31,17 @@ class EnvironmentConfig {
 
   /// Get API base URL based on environment
   static String get apiBaseUrl {
+    if (_overriddenBaseUrl != null) {
+      return _overriddenBaseUrl!;
+    }
+
     switch (_currentEnvironment) {
       case Environment.development:
-        return 'http://10.0.2.2:8080/api/v1'; // Android emulator host access
+        return 'http://192.168.1.70:8080/api/v1'; // Use machine IP for reliable connectivity
       case Environment.staging:
-        return 'https://staging-api.ubuzima.com/api/v1';
+        return 'https://staging-api.ubuzima.com';
       case Environment.production:
-        return 'https://api.ubuzima.com/api/v1';
+        return 'https://api.ubuzima.com';
     }
   }
 
@@ -190,7 +202,7 @@ class EnvironmentConfig {
   /// Print environment info (debug only)
   static void printEnvironmentInfo() {
     if (enableLogging) {
-      debugPrint('🌍 Environment: ${environmentDisplayName}');
+      debugPrint('🌍 Environment: $environmentDisplayName');
       debugPrint('🔗 API URL: $apiBaseUrl');
       debugPrint('🔌 WebSocket URL: $websocketUrl');
       debugPrint('⚡ Debug Features: $enableDebugFeatures');

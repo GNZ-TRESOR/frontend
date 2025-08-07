@@ -51,30 +51,41 @@ class CommunityEvent {
       id: json['id'],
       title: json['title'] ?? '',
       description: json['description'] ?? '',
-      category: json['category'] ?? '',
+      category:
+          json['type'] ?? json['category'] ?? '', // Backend uses 'type' field
       location: json['location'] ?? '',
-      startDate: DateTime.parse(json['startDate']),
+      startDate: DateTime.parse(
+        json['eventDate'] ?? json['startDate'],
+      ), // Backend uses 'eventDate'
       endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
-      organizer: json['organizer'] ?? '',
-      organizerContact: json['organizerContact'],
+      organizer:
+          json['organizer']?['name'] ??
+          json['organizer'] ??
+          '', // Handle User object or string
+      organizerContact: json['contactInfo'] ?? json['organizerContact'],
       maxParticipants: json['maxParticipants'] ?? 0,
       currentParticipants: json['currentParticipants'] ?? 0,
-      status: json['status'] ?? 'ACTIVE',
-      isOnline: json['isOnline'] ?? false,
-      meetingLink: json['meetingLink'],
+      status:
+          json['isActive'] == true
+              ? 'ACTIVE'
+              : 'INACTIVE', // Backend uses boolean isActive
+      isOnline:
+          json['isVirtual'] ??
+          json['isOnline'] ??
+          false, // Backend uses 'isVirtual'
+      meetingLink: json['virtualLink'] ?? json['meetingLink'],
       tags: List<String>.from(json['tags'] ?? []),
       imageUrl: json['imageUrl'],
       fee: json['fee']?.toDouble(),
       requirements: json['requirements'],
-      registrationDeadline: json['registrationDeadline'] != null 
-          ? DateTime.parse(json['registrationDeadline']) 
-          : null,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.parse(json['createdAt']) 
-          : null,
-      updatedAt: json['updatedAt'] != null 
-          ? DateTime.parse(json['updatedAt']) 
-          : null,
+      registrationDeadline:
+          json['registrationDeadline'] != null
+              ? DateTime.parse(json['registrationDeadline'])
+              : null,
+      createdAt:
+          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt:
+          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -83,17 +94,17 @@ class CommunityEvent {
       'id': id,
       'title': title,
       'description': description,
-      'category': category,
+      'type': category, // Backend expects 'type' field
       'location': location,
-      'startDate': startDate.toIso8601String(),
+      'eventDate': startDate.toIso8601String(), // Backend expects 'eventDate'
       'endDate': endDate?.toIso8601String(),
-      'organizer': organizer,
-      'organizerContact': organizerContact,
+      'organizerId': organizer, // Backend expects organizer ID
+      'contactInfo': organizerContact,
       'maxParticipants': maxParticipants,
       'currentParticipants': currentParticipants,
-      'status': status,
-      'isOnline': isOnline,
-      'meetingLink': meetingLink,
+      'isActive': status == 'ACTIVE', // Backend expects boolean
+      'isVirtual': isOnline, // Backend expects 'isVirtual'
+      'virtualLink': meetingLink,
       'tags': tags,
       'imageUrl': imageUrl,
       'fee': fee,
@@ -128,7 +139,8 @@ class CommunityEvent {
   bool get isRegistrationOpen {
     if (status.toUpperCase() != 'ACTIVE') return false;
     if (currentParticipants >= maxParticipants) return false;
-    if (registrationDeadline != null && DateTime.now().isAfter(registrationDeadline!)) {
+    if (registrationDeadline != null &&
+        DateTime.now().isAfter(registrationDeadline!)) {
       return false;
     }
     return isUpcoming;
@@ -180,7 +192,7 @@ class CommunityEvent {
   String get dateRange {
     final startFormatted = _formatDate(startDate);
     if (endDate == null) return startFormatted;
-    
+
     final endFormatted = _formatDate(endDate!);
     if (_isSameDay(startDate, endDate!)) {
       return '$startFormatted - ${_formatTime(endDate!)}';
@@ -192,10 +204,10 @@ class CommunityEvent {
   String get timeUntilEvent {
     if (isPast) return 'Event ended';
     if (isOngoing) return 'Happening now';
-    
+
     final now = DateTime.now();
     final difference = startDate.difference(now);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} days';
     } else if (difference.inHours > 0) {
@@ -226,7 +238,8 @@ class CommunityEvent {
     if (!isRegistrationOpen) {
       if (isFull) return 'Event is full';
       if (isPast) return 'Event has ended';
-      if (registrationDeadline != null && DateTime.now().isAfter(registrationDeadline!)) {
+      if (registrationDeadline != null &&
+          DateTime.now().isAfter(registrationDeadline!)) {
         return 'Registration closed';
       }
       return 'Registration not available';
@@ -236,14 +249,25 @@ class CommunityEvent {
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year} ${_formatTime(date)}';
   }
 
   String _formatTime(DateTime date) {
-    final hour = date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
+    final hour =
+        date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
     final minute = date.minute.toString().padLeft(2, '0');
     final period = date.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
@@ -251,8 +275,8 @@ class CommunityEvent {
 
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
-           date1.month == date2.month &&
-           date1.day == date2.day;
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
 
   @override

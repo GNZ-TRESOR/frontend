@@ -7,7 +7,7 @@ class AppConstants {
       'Your comprehensive companion for family planning, reproductive health, and wellness - designed with care for the modern woman';
 
   // API Configuration
-  static const String baseUrl = 'http://10.0.2.2:8080/api/v1';
+  static const String baseUrl = 'http://192.168.1.70:8080/api/v1';
   static const String apiVersion = 'v1';
   static const Duration defaultTimeout = Duration(seconds: 30);
   static const int maxRetries = 3;
@@ -213,8 +213,9 @@ class AppConstants {
   static String formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 

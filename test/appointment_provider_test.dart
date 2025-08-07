@@ -73,20 +73,24 @@ void main() {
 
   setUp(() {
     mockAppointmentService = MockAppointmentService();
-    
+
     // Create test users
     testPatient = User(
       id: 101,
-      name: 'Test Patient',
+      firstName: 'Test',
+      lastName: 'Patient',
       email: 'patient@test.com',
       role: 'CLIENT',
+      status: 'ACTIVE',
     );
-    
+
     testHealthWorker = User(
       id: 301,
-      name: 'Dr. Smith',
+      firstName: 'Dr.',
+      lastName: 'Smith',
       email: 'doctor@test.com',
       role: 'HEALTH_WORKER',
+      status: 'ACTIVE',
     );
 
     // Setup mock container with overrides
@@ -120,12 +124,14 @@ void main() {
       );
 
       // Setup mock response
-      when(mockAppointmentService.getAppointments(
-        status: anyNamed('status'),
-        date: anyNamed('date'),
-        page: anyNamed('page'),
-        size: anyNamed('size'),
-      )).thenAnswer((_) async => testAppointments);
+      when(
+        mockAppointmentService.getAppointments(
+          status: anyNamed('status'),
+          date: anyNamed('date'),
+          page: anyNamed('page'),
+          size: anyNamed('size'),
+        ),
+      ).thenAnswer((_) async => testAppointments);
 
       // Call the method
       await container.read(appointmentProvider.notifier).loadAppointments();
@@ -137,62 +143,75 @@ void main() {
       expect(state.error, isNull);
 
       // Verify the correct method was called
-      verify(mockAppointmentService.getAppointments(
-        status: anyNamed('status'),
-        date: anyNamed('date'),
-        page: anyNamed('page'),
-        size: anyNamed('size'),
-      )).called(1);
+      verify(
+        mockAppointmentService.getAppointments(
+          status: anyNamed('status'),
+          date: anyNamed('date'),
+          page: anyNamed('page'),
+          size: anyNamed('size'),
+        ),
+      ).called(1);
     });
 
-    test('loadAppointments should update state for health worker role', () async {
-      // Setup auth provider with health worker user
-      container = ProviderContainer(
-        overrides: [
-          appointmentServiceProvider.overrideWithValue(mockAppointmentService),
-          currentUserProvider.overrideWithValue(testHealthWorker),
-        ],
-      );
+    test(
+      'loadAppointments should update state for health worker role',
+      () async {
+        // Setup auth provider with health worker user
+        container = ProviderContainer(
+          overrides: [
+            appointmentServiceProvider.overrideWithValue(
+              mockAppointmentService,
+            ),
+            currentUserProvider.overrideWithValue(testHealthWorker),
+          ],
+        );
 
-      // Setup mock response
-      when(mockAppointmentService.getHealthWorkerAppointments(
-        testHealthWorker.id,
-        status: anyNamed('status'),
-        date: anyNamed('date'),
-      )).thenAnswer((_) async => testAppointments);
+        // Setup mock response
+        when(
+          mockAppointmentService.getHealthWorkerAppointments(
+            testHealthWorker.id,
+            status: anyNamed('status'),
+            date: anyNamed('date'),
+          ),
+        ).thenAnswer((_) async => testAppointments);
 
-      // Call the method
-      await container.read(appointmentProvider.notifier).loadAppointments();
+        // Call the method
+        await container.read(appointmentProvider.notifier).loadAppointments();
 
-      // Verify state
-      final state = container.read(appointmentProvider);
-      expect(state.appointments, equals(testAppointments));
-      expect(state.isLoading, isFalse);
-      expect(state.error, isNull);
+        // Verify state
+        final state = container.read(appointmentProvider);
+        expect(state.appointments, equals(testAppointments));
+        expect(state.isLoading, isFalse);
+        expect(state.error, isNull);
 
-      // Verify the correct method was called
-      verify(mockAppointmentService.getHealthWorkerAppointments(
-        testHealthWorker.id,
-        status: anyNamed('status'),
-        date: anyNamed('date'),
-      )).called(1);
-    });
+        // Verify the correct method was called
+        verify(
+          mockAppointmentService.getHealthWorkerAppointments(
+            testHealthWorker.id,
+            status: anyNamed('status'),
+            date: anyNamed('date'),
+          ),
+        ).called(1);
+      },
+    );
 
     test('loadTimeSlots should update state', () async {
       // Setup mock response
-      when(mockAppointmentService.getTimeSlots(
-        healthWorkerId: anyNamed('healthWorkerId'),
-        healthFacilityId: anyNamed('healthFacilityId'),
-        date: anyNamed('date'),
-        isAvailable: anyNamed('isAvailable'),
-        page: anyNamed('page'),
-        size: anyNamed('size'),
-      )).thenAnswer((_) async => testTimeSlots);
+      when(
+        mockAppointmentService.getTimeSlots(
+          healthWorkerId: anyNamed('healthWorkerId'),
+          healthFacilityId: anyNamed('healthFacilityId'),
+          date: anyNamed('date'),
+          isAvailable: anyNamed('isAvailable'),
+          page: anyNamed('page'),
+          size: anyNamed('size'),
+        ),
+      ).thenAnswer((_) async => testTimeSlots);
 
       // Call the method
-      await container.read(appointmentProvider.notifier).loadTimeSlots(
-        healthWorkerId: testHealthWorker.id,
-      );
+      await container
+          .read(appointmentProvider.notifier)
+          .loadTimeSlots(healthWorkerId: testHealthWorker.id);
 
       // Verify state
       final state = container.read(appointmentProvider);
@@ -201,14 +220,16 @@ void main() {
       expect(state.error, isNull);
 
       // Verify the correct method was called
-      verify(mockAppointmentService.getTimeSlots(
-        healthWorkerId: testHealthWorker.id,
-        healthFacilityId: anyNamed('healthFacilityId'),
-        date: anyNamed('date'),
-        isAvailable: anyNamed('isAvailable'),
-        page: anyNamed('page'),
-        size: anyNamed('size'),
-      )).called(1);
+      verify(
+        mockAppointmentService.getTimeSlots(
+          healthWorkerId: testHealthWorker.id,
+          healthFacilityId: anyNamed('healthFacilityId'),
+          date: anyNamed('date'),
+          isAvailable: anyNamed('isAvailable'),
+          page: anyNamed('page'),
+          size: anyNamed('size'),
+        ),
+      ).called(1);
     });
 
     test('createAppointment should add appointment to state', () async {
@@ -224,30 +245,33 @@ void main() {
       );
 
       // Setup mock response
-      when(mockAppointmentService.createAppointment(
-        healthFacilityId: anyNamed('healthFacilityId'),
-        healthWorkerId: anyNamed('healthWorkerId'),
-        appointmentType: anyNamed('appointmentType'),
-        scheduledDate: anyNamed('scheduledDate'),
-        durationMinutes: anyNamed('durationMinutes'),
-        reason: anyNamed('reason'),
-        notes: anyNamed('notes'),
-      )).thenAnswer((_) async => newAppointment);
+      when(
+        mockAppointmentService.createAppointment(
+          healthFacilityId: anyNamed('healthFacilityId'),
+          healthWorkerId: anyNamed('healthWorkerId'),
+          appointmentType: anyNamed('appointmentType'),
+          scheduledDate: anyNamed('scheduledDate'),
+          durationMinutes: anyNamed('durationMinutes'),
+          reason: anyNamed('reason'),
+          notes: anyNamed('notes'),
+        ),
+      ).thenAnswer((_) async => newAppointment);
 
       // Initialize with existing appointments
-      container.read(appointmentProvider.notifier).state = 
-          container.read(appointmentProvider).copyWith(
-            appointments: testAppointments,
-          );
+      container.read(appointmentProvider.notifier).state = container
+          .read(appointmentProvider)
+          .copyWith(appointments: testAppointments);
 
       // Call the method
-      final result = await container.read(appointmentProvider.notifier).createAppointment(
-        healthFacilityId: 201,
-        healthWorkerId: 301,
-        appointmentType: 'CONSULTATION',
-        scheduledDate: DateTime.now().add(const Duration(days: 2)),
-        reason: 'New patient visit',
-      );
+      final result = await container
+          .read(appointmentProvider.notifier)
+          .createAppointment(
+            healthFacilityId: 201,
+            healthWorkerId: 301,
+            appointmentType: 'CONSULTATION',
+            scheduledDate: DateTime.now().add(const Duration(days: 2)),
+            reason: 'New patient visit',
+          );
 
       // Verify result
       expect(result, isTrue);

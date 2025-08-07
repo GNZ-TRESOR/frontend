@@ -5,8 +5,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/loading_overlay.dart';
 import '../../core/providers/family_planning_provider.dart';
 import '../../core/models/pregnancy_plan.dart';
-import '../../core/models/partner_invitation.dart';
-import '../../core/models/partner_decision.dart';
 import 'pregnancy_plan_form_screen.dart';
 import 'pregnancy_plan_detail_screen.dart';
 import 'partner_management_screen.dart';
@@ -29,7 +27,7 @@ class _PregnancyPlanningScreenState
     extends ConsumerState<PregnancyPlanningScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {
@@ -891,62 +889,279 @@ class _PregnancyPlanningScreenState
             ),
           ),
           const SizedBox(height: 16),
-          _buildComingSoonCard(),
+          _buildResourceSection(
+            'Pregnancy Education',
+            Icons.school,
+            AppColors.educationBlue,
+            [
+              _buildResourceCard(
+                'Prenatal Care Guide',
+                'Essential information about prenatal visits and care',
+                Icons.medical_services,
+                () => _showResourceDetail('Prenatal Care Guide'),
+              ),
+              _buildResourceCard(
+                'Nutrition During Pregnancy',
+                'Healthy eating guidelines for expecting mothers',
+                Icons.restaurant,
+                () => _showResourceDetail('Nutrition During Pregnancy'),
+              ),
+              _buildResourceCard(
+                'Exercise & Pregnancy',
+                'Safe exercises and activities during pregnancy',
+                Icons.fitness_center,
+                () => _showResourceDetail('Exercise & Pregnancy'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildResourceSection(
+            'Support & Community',
+            Icons.people,
+            AppColors.communityTeal,
+            [
+              _buildResourceCard(
+                'Support Groups',
+                'Connect with other expecting mothers',
+                Icons.group,
+                () => _navigateToSupportGroups(),
+              ),
+              _buildResourceCard(
+                'Expert Consultations',
+                'Schedule consultations with healthcare providers',
+                Icons.video_call,
+                () => _navigateToAppointments(),
+              ),
+              _buildResourceCard(
+                'Emergency Contacts',
+                'Important contacts for pregnancy emergencies',
+                Icons.emergency,
+                () => _showEmergencyContacts(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildResourceSection(
+            'Tools & Calculators',
+            Icons.calculate,
+            AppColors.pregnancyPurple,
+            [
+              _buildResourceCard(
+                'Due Date Calculator',
+                'Calculate your estimated due date',
+                Icons.calendar_today,
+                () => _showDueDateCalculator(),
+              ),
+              _buildResourceCard(
+                'Weight Tracker',
+                'Track healthy weight gain during pregnancy',
+                Icons.monitor_weight,
+                () => _showWeightTracker(),
+              ),
+              _buildResourceCard(
+                'Kick Counter',
+                'Monitor baby movements and kicks',
+                Icons.child_care,
+                () => _showKickCounter(),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildComingSoonCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.construction,
-            size: 64,
-            color: AppColors.textSecondary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Resources Coming Soon',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+  Widget _buildResourceSection(
+    String title,
+    IconData icon,
+    Color color,
+    List<Widget> cards,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...cards,
+      ],
+    );
+  }
+
+  Widget _buildResourceCard(
+    String title,
+    String description,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: AppColors.pregnancyPurple.withValues(alpha: 0.1),
+          child: Icon(icon, color: AppColors.pregnancyPurple),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(description),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  // Resource action methods
+  void _showResourceDetail(String resourceTitle) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(resourceTitle),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_getResourceContent(resourceTitle)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'For more detailed information, please consult with your healthcare provider.',
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _navigateToAppointments();
+                },
+                child: const Text('Book Consultation'),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'We\'re working on bringing you comprehensive pregnancy resources, educational content, and support tools.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Resources feature is under development'),
-                  backgroundColor: AppColors.primary,
+    );
+  }
+
+  String _getResourceContent(String title) {
+    switch (title) {
+      case 'Prenatal Care Guide':
+        return 'Regular prenatal care is essential for a healthy pregnancy. Schedule your first appointment as soon as you know you\'re pregnant. Typical visit schedule:\n\n• Weeks 4-28: Every 4 weeks\n• Weeks 28-36: Every 2 weeks\n• Weeks 36-40: Every week\n\nDuring visits, your healthcare provider will monitor your health and baby\'s development.';
+      case 'Nutrition During Pregnancy':
+        return 'Proper nutrition supports your baby\'s growth and development:\n\n• Take prenatal vitamins with folic acid\n• Eat a variety of fruits and vegetables\n• Include lean proteins and whole grains\n• Stay hydrated with plenty of water\n• Limit caffeine and avoid alcohol\n• Avoid raw or undercooked foods';
+      case 'Exercise & Pregnancy':
+        return 'Regular exercise during pregnancy can help:\n\n• Reduce back pain and improve posture\n• Boost energy and improve mood\n• Promote better sleep\n• Prepare for labor and delivery\n\nSafe activities include walking, swimming, and prenatal yoga. Always consult your healthcare provider before starting any exercise program.';
+      default:
+        return 'This resource provides important information for your pregnancy journey. Please consult with your healthcare provider for personalized guidance.';
+    }
+  }
+
+  void _navigateToSupportGroups() {
+    Navigator.pushNamed(context, '/support-groups');
+  }
+
+  void _navigateToAppointments() {
+    Navigator.pushNamed(context, '/appointments');
+  }
+
+  void _showEmergencyContacts() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Emergency Contacts'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildEmergencyContact(
+                  'Emergency Services',
+                  '911',
+                  Icons.local_hospital,
                 ),
-              );
-            },
-            icon: const Icon(Icons.notifications),
-            label: const Text('Notify Me'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.pregnancyPurple,
-              foregroundColor: Colors.white,
+                _buildEmergencyContact(
+                  'Poison Control',
+                  '1-800-222-1222',
+                  Icons.warning,
+                ),
+                _buildEmergencyContact(
+                  'Your Healthcare Provider',
+                  'Contact your doctor',
+                  Icons.medical_services,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Call 911 immediately if you experience:\n• Severe bleeding\n• Severe abdominal pain\n• Signs of preeclampsia\n• Decreased fetal movement',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildEmergencyContact(String title, String contact, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(contact, style: TextStyle(color: AppColors.textSecondary)),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showDueDateCalculator() {
+    Navigator.pushNamed(context, '/due-date-calculator');
+  }
+
+  void _showWeightTracker() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Weight tracker feature coming soon')),
+    );
+  }
+
+  void _showKickCounter() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kick counter feature coming soon')),
     );
   }
 

@@ -175,90 +175,178 @@ extension ContraceptionTypeExtension on ContraceptionType {
 }
 
 /// Contraception Method Model
-@JsonSerializable()
 class ContraceptionMethod {
-  final int? id;
-  @JsonKey(name: 'user', fromJson: _userIdFromJson)
-  final int? userId;
-  @JsonKey(
-    fromJson: _contraceptionTypeFromJson,
-    toJson: _contraceptionTypeToJson,
-  )
-  final ContraceptionType type;
+  final int id;
   final String name;
+  final ContraceptionType type;
   final String? description;
-  final DateTime startDate;
-  final DateTime? endDate;
   final double? effectiveness;
-  final List<String> sideEffects;
-  final String? instructions;
-  final DateTime? nextAppointment;
-  final bool isActive;
+  final String? duration;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool? isActive;
+  final String? notes;
   final String? prescribedBy;
-  final String? additionalData;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final DateTime? nextAppointment;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int? userId;
+  final List<String>? sideEffects;
+  final String? instructions;
+  final Map<String, dynamic>? additionalData;
 
-  const ContraceptionMethod({
-    this.id,
-    this.userId,
-    required this.type,
+  ContraceptionMethod({
+    required this.id,
     required this.name,
+    required this.type,
     this.description,
-    required this.startDate,
-    this.endDate,
     this.effectiveness,
-    this.sideEffects = const [],
-    this.instructions,
-    this.nextAppointment,
-    this.isActive = true,
+    this.duration,
+    this.startDate,
+    this.endDate,
+    this.isActive,
+    this.notes,
     this.prescribedBy,
+    this.nextAppointment,
+    required this.createdAt,
+    required this.updatedAt,
+    this.userId,
+    this.sideEffects,
+    this.instructions,
     this.additionalData,
-    this.createdAt,
-    this.updatedAt,
   });
 
-  factory ContraceptionMethod.fromJson(Map<String, dynamic> json) =>
-      _$ContraceptionMethodFromJson(json);
+  factory ContraceptionMethod.fromJson(Map<String, dynamic> json) {
+    return ContraceptionMethod(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      type: _parseContraceptionType(json['type'] as String),
+      description: json['description'] as String?,
+      effectiveness: json['effectiveness']?.toDouble(),
+      duration: json['duration'] as String?,
+      startDate:
+          json['startDate'] != null
+              ? DateTime.parse(json['startDate'] as String)
+              : null,
+      endDate:
+          json['endDate'] != null
+              ? DateTime.parse(json['endDate'] as String)
+              : null,
+      isActive: json['isActive'] as bool? ?? true,
+      notes: json['notes'] as String?,
+      prescribedBy: json['prescribedBy'] as String?,
+      nextAppointment:
+          json['nextAppointment'] != null
+              ? DateTime.parse(json['nextAppointment'] as String)
+              : null,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      userId: json['userId'] as int?,
+      sideEffects:
+          json['sideEffects'] != null
+              ? List<String>.from(json['sideEffects'] as List)
+              : null,
+      instructions: json['instructions'] as String?,
+      additionalData:
+          json['additionalData'] != null
+              ? Map<String, dynamic>.from(json['additionalData'] as Map)
+              : null,
+    );
+  }
 
-  Map<String, dynamic> toJson() => _$ContraceptionMethodToJson(this);
+  static ContraceptionType _parseContraceptionType(String type) {
+    switch (type.toUpperCase()) {
+      case 'PILL':
+        return ContraceptionType.pill;
+      case 'IUD':
+        return ContraceptionType.iud;
+      case 'IMPLANT':
+        return ContraceptionType.implant;
+      case 'INJECTION':
+        return ContraceptionType.injection;
+      case 'CONDOM':
+        return ContraceptionType.condom;
+      case 'PATCH':
+        return ContraceptionType.patch;
+      case 'RING':
+        return ContraceptionType.ring;
+      case 'DIAPHRAGM':
+        return ContraceptionType.diaphragm;
+      case 'NATURAL_FAMILY_PLANNING':
+        return ContraceptionType.naturalFamilyPlanning;
+      case 'STERILIZATION':
+        return ContraceptionType.sterilization;
+      case 'EMERGENCY_CONTRACEPTION':
+        return ContraceptionType.emergencyContraception;
+      default:
+        return ContraceptionType.other;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'type': type,
+      'description': description,
+      'effectiveness': effectiveness,
+      'duration': duration,
+      'startDate': startDate?.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'isActive': isActive,
+      'notes': notes,
+      'prescribedBy': prescribedBy,
+      'nextAppointment': nextAppointment?.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
 
   ContraceptionMethod copyWith({
     int? id,
-    int? userId,
-    ContraceptionType? type,
     String? name,
+    ContraceptionType? type,
     String? description,
+    double? effectiveness,
+    String? duration,
     DateTime? startDate,
     DateTime? endDate,
-    double? effectiveness,
-    List<String>? sideEffects,
-    String? instructions,
-    DateTime? nextAppointment,
     bool? isActive,
+    String? notes,
     String? prescribedBy,
-    String? additionalData,
+    DateTime? nextAppointment,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? userId,
+    List<String>? sideEffects,
+    String? instructions,
+    Map<String, dynamic>? additionalData,
   }) {
     return ContraceptionMethod(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
-      type: type ?? this.type,
       name: name ?? this.name,
+      type: type ?? this.type,
       description: description ?? this.description,
+      effectiveness: effectiveness ?? this.effectiveness,
+      duration: duration ?? this.duration,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
-      effectiveness: effectiveness ?? this.effectiveness,
-      sideEffects: sideEffects ?? this.sideEffects,
-      instructions: instructions ?? this.instructions,
-      nextAppointment: nextAppointment ?? this.nextAppointment,
       isActive: isActive ?? this.isActive,
+      notes: notes ?? this.notes,
       prescribedBy: prescribedBy ?? this.prescribedBy,
-      additionalData: additionalData ?? this.additionalData,
+      nextAppointment: nextAppointment ?? this.nextAppointment,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      userId: userId ?? this.userId,
+      sideEffects: sideEffects ?? this.sideEffects,
+      instructions: instructions ?? this.instructions,
+      additionalData: additionalData ?? this.additionalData,
     );
+  }
+
+  @override
+  String toString() {
+    return 'ContraceptionMethod(id: $id, name: $name, type: $type, isActive: $isActive)';
   }
 
   @override
@@ -269,11 +357,6 @@ class ContraceptionMethod {
 
   @override
   int get hashCode => id.hashCode;
-
-  @override
-  String toString() {
-    return 'ContraceptionMethod(id: $id, name: $name, type: $type, isActive: $isActive)';
-  }
 }
 
 /// Available Contraception Method (for selection)
