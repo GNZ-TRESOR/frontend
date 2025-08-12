@@ -167,8 +167,52 @@ class EducationLesson {
     this.updatedAt,
   });
 
-  factory EducationLesson.fromJson(Map<String, dynamic> json) =>
-      _$EducationLessonFromJson(json);
+  factory EducationLesson.fromJson(Map<String, dynamic> json) {
+    // Custom date parsing function to handle both String and List formats
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        return DateTime.tryParse(value);
+      } else if (value is List && value.length >= 3) {
+        // [year, month, day, hour, minute, second, nanosecond]
+        return DateTime(
+          value[0] as int,
+          value[1] as int,
+          value[2] as int,
+          value.length > 3 ? value[3] as int : 0,
+          value.length > 4 ? value[4] as int : 0,
+          value.length > 5 ? value[5] as int : 0,
+          value.length > 6
+              ? (value[6] as int) ~/ 1000000
+              : 0, // Convert nanoseconds to milliseconds
+        );
+      }
+      return null;
+    }
+
+    return EducationLesson(
+      id: json['id'] as int?,
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String?,
+      content: json['content'] as String?,
+      category: _educationCategoryFromJson(
+        json['category'] as String? ?? 'FAMILY_PLANNING',
+      ),
+      level: _educationLevelFromJson(json['level'] as String? ?? 'BEGINNER'),
+      durationMinutes: json['durationMinutes'] as int?,
+      tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+      videoUrl: json['videoUrl'] as String?,
+      audioUrl: json['audioUrl'] as String?,
+      imageUrls: (json['imageUrls'] as List<dynamic>?)?.cast<String>() ?? [],
+      isPublished: json['isPublished'] as bool? ?? false,
+      viewCount: json['viewCount'] as int? ?? 0,
+      language: json['language'] as String? ?? 'en',
+      author: json['author'] as String?,
+      orderIndex: json['orderIndex'] as int? ?? 0,
+      createdAt: parseDate(json['createdAt']),
+      updatedAt: parseDate(json['updatedAt']),
+    );
+  }
 
   Map<String, dynamic> toJson() => _$EducationLessonToJson(this);
 

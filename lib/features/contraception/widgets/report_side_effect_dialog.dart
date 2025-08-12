@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/models/side_effect_report.dart';
+import '../../../core/models/side_effect.dart';
 import '../../../core/providers/contraception_provider.dart';
 
 class ReportSideEffectDialog extends ConsumerStatefulWidget {
@@ -325,14 +325,18 @@ class _ReportSideEffectDialogState
       final sideEffect = SideEffectReport(
         id: 0,
         userId: 1, // This should come from auth provider
-        contraceptionMethodId: widget.contraceptionMethodId,
-        symptom: _selectedSymptom!,
-        severity: _selectedSeverity!,
-        notes:
+        contraceptionMethodId: widget.contraceptionMethodId ?? 0,
+        sideEffectName: _selectedSymptom!,
+        severity: SideEffectSeverity.values.firstWhere(
+          (s) => s.name.toLowerCase() == _selectedSeverity!.toLowerCase(),
+          orElse: () => SideEffectSeverity.mild,
+        ),
+        frequency: SideEffectFrequency.occasional, // Default value
+        description:
             _descriptionController.text.isEmpty
                 ? null
                 : _descriptionController.text,
-        reportedDate: DateTime.now(),
+        dateReported: DateTime.now(),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

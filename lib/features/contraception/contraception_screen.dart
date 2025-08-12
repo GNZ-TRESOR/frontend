@@ -7,7 +7,7 @@ import '../../core/providers/contraception_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/widgets/auto_translate_widget.dart';
 import '../../core/models/contraception_method.dart';
-import '../../core/models/side_effect_report.dart';
+import '../../core/models/side_effect.dart';
 import 'widgets/add_method_form.dart';
 
 /// Redesigned Contraception Management Screen
@@ -1486,9 +1486,11 @@ class _ContraceptionScreenState extends ConsumerState<ContraceptionScreen>
                                   userId: 1, // Current user ID
                                   contraceptionMethodId:
                                       _selectedMethodForSideEffect!.id,
-                                  symptom: _sideEffectController.text.trim(),
-                                  severity: 'Moderate', // Default severity
-                                  reportedDate: DateTime.now(),
+                                  sideEffectName:
+                                      _sideEffectController.text.trim(),
+                                  severity: SideEffectSeverity.moderate,
+                                  frequency: SideEffectFrequency.occasional,
+                                  dateReported: DateTime.now(),
                                   createdAt: DateTime.now(),
                                   updatedAt: DateTime.now(),
                                 );

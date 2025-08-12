@@ -9,117 +9,7 @@ import 'storage_service.dart';
 class CommunityService {
   final ApiService _apiService = ApiService.instance;
 
-  // Mock data for fallback - will be replaced with real API calls
-  static final List<SupportGroup> _mockGroups = [
-    SupportGroup(
-      id: 1,
-      name: 'First Time Mothers',
-      category: 'Pregnancy & Parenting',
-      description: 'Support for new mothers navigating pregnancy',
-      memberCount: 245,
-      isActive: true,
-      isPrivate: false,
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-      updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      creatorId: 1,
-    ),
-    SupportGroup(
-      id: 2,
-      name: 'Family Planning Support',
-      category: 'General Health',
-      description: 'Discussing contraception and family planning',
-      memberCount: 189,
-      isActive: true,
-      isPrivate: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 15)),
-      updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-      creatorId: 2,
-    ),
-  ];
-
-  static final List<SupportTicket> _mockTickets = [
-    SupportTicket(
-      id: 1,
-      subject: 'App Login Issue',
-      description: 'Cannot log into the app with my credentials',
-      status: TicketStatus.open,
-      priority: TicketPriority.medium,
-      ticketType: TicketType.technical,
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-      userId: 1,
-    ),
-    SupportTicket(
-      id: 2,
-      subject: 'Medication Reminder Not Working',
-      description: 'The medication reminder notifications are not appearing',
-      status: TicketStatus.inProgress,
-      priority: TicketPriority.high,
-      ticketType: TicketType.technical,
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      userId: 1,
-    ),
-  ];
-
-  static final List<Message> _mockMessages = [
-    Message(
-      id: 1,
-      content: 'Thanks for the advice about morning sickness!',
-      senderId: 1,
-      receiverId: 2,
-      conversationId: 'conv_1',
-      messageType: MessageType.text,
-      priority: MessagePriority.normal,
-      isRead: true,
-      isEmergency: false,
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      readAt: DateTime.now().subtract(const Duration(hours: 1)),
-    ),
-    Message(
-      id: 2,
-      content: 'Your test results look great. Keep up the good work!',
-      senderId: 2,
-      receiverId: 1,
-      conversationId: 'conv_1',
-      messageType: MessageType.text,
-      priority: MessagePriority.normal,
-      isRead: false,
-      isEmergency: false,
-      createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
-    ),
-  ];
-
-  static final List<Conversation> _mockConversations = [
-    Conversation(
-      id: 'conv_1',
-      groupName: 'First Time Mothers',
-      participantIds: [1, 2],
-      isGroup: true,
-      lastActivity: DateTime.now().subtract(const Duration(minutes: 30)),
-      unreadCount: 1,
-      lastMessage: _mockMessages[1],
-    ),
-    Conversation(
-      id: 'conv_2',
-      groupName: 'Dr. Emily Johnson',
-      participantIds: [1, 3],
-      isGroup: false,
-      lastActivity: DateTime.now().subtract(const Duration(days: 1)),
-      unreadCount: 0,
-      lastMessage: Message(
-        id: 3,
-        content: 'Your test results look great. Keep up the good work!',
-        senderId: 3,
-        receiverId: 1,
-        conversationId: 'conv_2',
-        messageType: MessageType.text,
-        priority: MessagePriority.normal,
-        isRead: true,
-        isEmergency: false,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        readAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ),
-  ];
+  // Real API service - no more mock data
 
   // Support Groups
   Future<List<SupportGroup>> getSupportGroups({
@@ -160,45 +50,15 @@ class CommunityService {
 
         return groups;
       } else {
-        // Fallback to mock data if API fails
-        return _getMockGroups(
-          category: category,
-          isPrivate: isPrivate,
-          isActive: isActive,
-        );
+        // Return empty list instead of mock data
+        debugPrint('Support Groups API failed: ${response.message}');
+        return [];
       }
     } catch (e) {
-      // Fallback to mock data on error
-      return _getMockGroups(
-        category: category,
-        isPrivate: isPrivate,
-        isActive: isActive,
-      );
+      // Return empty list instead of mock data
+      debugPrint('Error loading support groups: $e');
+      return [];
     }
-  }
-
-  // Fallback method for mock data
-  Future<List<SupportGroup>> _getMockGroups({
-    String? category,
-    bool? isPrivate,
-    bool? isActive,
-  }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    var groups = List<SupportGroup>.from(_mockGroups);
-
-    // Apply filters
-    if (category != null) {
-      groups = groups.where((group) => group.category == category).toList();
-    }
-    if (isPrivate != null) {
-      groups = groups.where((group) => group.isPrivate == isPrivate).toList();
-    }
-    if (isActive != null) {
-      groups = groups.where((group) => group.isActive == isActive).toList();
-    }
-
-    return groups;
   }
 
   Future<SupportGroup> createSupportGroup(SupportGroup group) async {
@@ -226,73 +86,74 @@ class CommunityService {
         throw Exception(response.message ?? 'Failed to create support group');
       }
     } catch (e) {
-      // Fallback to mock implementation
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      final newGroup = SupportGroup(
-        id: _mockGroups.length + 1,
-        name: group.name,
-        category: group.category,
-        description: group.description,
-        memberCount: 1,
-        isActive: group.isActive,
-        isPrivate: group.isPrivate,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        creatorId: group.creatorId,
-        contactInfo: group.contactInfo,
-        meetingLocation: group.meetingLocation,
-        meetingSchedule: group.meetingSchedule,
-        maxMembers: group.maxMembers,
-        tags: group.tags,
-      );
-
-      _mockGroups.add(newGroup);
-      return newGroup;
+      // Rethrow the error instead of using mock data
+      debugPrint('Error creating support group: $e');
+      rethrow;
     }
   }
 
   Future<SupportGroup> updateSupportGroup(int id, SupportGroup group) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final groupData = {
+        'name': group.name,
+        'category': group.category,
+        'description': group.description,
+        'isActive': group.isActive,
+        'isPrivate': group.isPrivate,
+        'contactInfo': group.contactInfo,
+        'meetingLocation': group.meetingLocation,
+        'meetingSchedule': group.meetingSchedule,
+        'maxMembers': group.maxMembers,
+        'tags': group.tags,
+      };
 
-    final index = _mockGroups.indexWhere((g) => g.id == id);
-    if (index != -1) {
-      final updatedGroup = group.copyWith(id: id, updatedAt: DateTime.now());
-      _mockGroups[index] = updatedGroup;
-      return updatedGroup;
+      final response = await _apiService.updateSupportGroup(id, groupData);
+
+      if (response.success && response.data != null) {
+        final responseData = Map<String, dynamic>.from(response.data as Map);
+        return SupportGroup.fromJson(responseData);
+      } else {
+        throw Exception(response.message ?? 'Failed to update support group');
+      }
+    } catch (e) {
+      debugPrint('Error updating support group: $e');
+      rethrow;
     }
-    throw Exception('Support group not found');
   }
 
   Future<void> deleteSupportGroup(int id) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    _mockGroups.removeWhere((group) => group.id == id);
+    try {
+      final response = await _apiService.deleteSupportGroup(id);
+      if (!response.success) {
+        throw Exception(response.message ?? 'Failed to delete support group');
+      }
+    } catch (e) {
+      debugPrint('Error deleting support group: $e');
+      rethrow;
+    }
   }
 
   Future<List<SupportGroupMember>> getGroupMembers(int groupId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      final response = await _apiService.getSupportGroupMembers(groupId);
 
-    // Return mock members
-    return [
-      SupportGroupMember(
-        id: 1,
-        userId: 1,
-        groupId: groupId,
-        role: GroupMemberRole.member,
-        isActive: true,
-        joinedAt: DateTime.now().subtract(const Duration(days: 10)),
-        lastActivityAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      SupportGroupMember(
-        id: 2,
-        userId: 2,
-        groupId: groupId,
-        role: GroupMemberRole.admin,
-        isActive: true,
-        joinedAt: DateTime.now().subtract(const Duration(days: 30)),
-        lastActivityAt: DateTime.now().subtract(const Duration(minutes: 30)),
-      ),
-    ];
+      if (response.success && response.data != null) {
+        final membersData = response.data['members'] as List<dynamic>? ?? [];
+        return membersData
+            .map(
+              (memberJson) => SupportGroupMember.fromJson(
+                memberJson as Map<String, dynamic>,
+              ),
+            )
+            .toList();
+      } else {
+        debugPrint('Failed to load group members: ${response.message}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error loading group members: $e');
+      return [];
+    }
   }
 
   Future<SupportGroupMember> joinGroup(int groupId) async {
@@ -341,57 +202,95 @@ class CommunityService {
     TicketType? type,
     TicketPriority? priority,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final response = await _apiService.getSupportTickets();
 
-    var tickets = List<SupportTicket>.from(_mockTickets);
+      if (response.success && response.data != null) {
+        final ticketsData = response.data['tickets'] as List<dynamic>? ?? [];
+        var tickets =
+            ticketsData
+                .map(
+                  (ticketJson) => SupportTicket.fromJson(
+                    ticketJson as Map<String, dynamic>,
+                  ),
+                )
+                .toList();
 
-    // Apply filters
-    if (status != null) {
-      tickets = tickets.where((ticket) => ticket.status == status).toList();
-    }
-    if (type != null) {
-      tickets = tickets.where((ticket) => ticket.ticketType == type).toList();
-    }
-    if (priority != null) {
-      tickets = tickets.where((ticket) => ticket.priority == priority).toList();
-    }
+        // Apply filters
+        if (status != null) {
+          tickets = tickets.where((ticket) => ticket.status == status).toList();
+        }
+        if (type != null) {
+          tickets =
+              tickets.where((ticket) => ticket.ticketType == type).toList();
+        }
+        if (priority != null) {
+          tickets =
+              tickets.where((ticket) => ticket.priority == priority).toList();
+        }
 
-    return tickets;
+        return tickets;
+      } else {
+        debugPrint('Support Tickets API failed: ${response.message}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error loading support tickets: $e');
+      return [];
+    }
   }
 
   Future<SupportTicket> createSupportTicket(SupportTicket ticket) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final ticketData = {
+        'subject': ticket.subject,
+        'description': ticket.description,
+        'priority': ticket.priority.toString().split('.').last.toUpperCase(),
+        'ticketType':
+            ticket.ticketType.toString().split('.').last.toUpperCase(),
+        'userId': ticket.userId,
+        'userEmail': ticket.userEmail,
+        'userPhone': ticket.userPhone,
+      };
 
-    final newTicket = SupportTicket(
-      id: _mockTickets.length + 1,
-      subject: ticket.subject,
-      description: ticket.description,
-      status: TicketStatus.open,
-      priority: ticket.priority,
-      ticketType: ticket.ticketType,
-      createdAt: DateTime.now(),
-      userId: ticket.userId,
-      userEmail: ticket.userEmail,
-      userPhone: ticket.userPhone,
-    );
+      final response = await _apiService.createSupportTicket(ticketData);
 
-    _mockTickets.add(newTicket);
-    return newTicket;
+      if (response.success && response.data != null) {
+        return SupportTicket.fromJson(response.data as Map<String, dynamic>);
+      } else {
+        throw Exception(response.message ?? 'Failed to create support ticket');
+      }
+    } catch (e) {
+      debugPrint('Error creating support ticket: $e');
+      rethrow;
+    }
   }
 
   Future<SupportTicket> updateSupportTicket(
     int id,
     SupportTicket ticket,
   ) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final ticketData = {
+        'subject': ticket.subject,
+        'description': ticket.description,
+        'status': ticket.status.toString().split('.').last.toUpperCase(),
+        'priority': ticket.priority.toString().split('.').last.toUpperCase(),
+        'ticketType':
+            ticket.ticketType.toString().split('.').last.toUpperCase(),
+      };
 
-    final index = _mockTickets.indexWhere((t) => t.id == id);
-    if (index != -1) {
-      final updatedTicket = ticket.copyWith(id: id, updatedAt: DateTime.now());
-      _mockTickets[index] = updatedTicket;
-      return updatedTicket;
+      final response = await _apiService.updateSupportTicket(id, ticketData);
+
+      if (response.success && response.data != null) {
+        return SupportTicket.fromJson(response.data as Map<String, dynamic>);
+      } else {
+        throw Exception(response.message ?? 'Failed to update support ticket');
+      }
+    } catch (e) {
+      debugPrint('Error updating support ticket: $e');
+      rethrow;
     }
-    throw Exception('Support ticket not found');
   }
 
   // Messages
@@ -536,63 +435,48 @@ class CommunityService {
       return [];
     } catch (e) {
       debugPrint('Error loading messages: $e');
-      // Fallback to mock data if API fails
-      var messages = List<Message>.from(_mockMessages);
-
-      // Apply filters to mock data
-      if (conversationId != null) {
-        messages =
-            messages
-                .where((msg) => msg.conversationId == conversationId)
-                .toList();
-      }
-      if (receiverId != null) {
-        messages =
-            messages.where((msg) => msg.receiverId == receiverId).toList();
-      }
-      if (senderId != null) {
-        messages = messages.where((msg) => msg.senderId == senderId).toList();
-      }
-      if (unreadOnly == true) {
-        messages = messages.where((msg) => msg.isRead != true).toList();
-      }
-
-      return messages;
+      return [];
     }
   }
 
   Future<Message> sendMessage(Message message) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final response = await _apiService.sendMessage(
+        senderId: message.senderId,
+        receiverId: message.receiverId,
+        content: message.content,
+        conversationId: message.conversationId,
+        messageType:
+            message.messageType.toString().split('.').last.toUpperCase(),
+        priority: message.priority.toString().split('.').last.toUpperCase(),
+        isEmergency: message.isEmergency ?? false,
+        audioUrl:
+            message.attachmentUrls?.isNotEmpty == true
+                ? message.attachmentUrls!.first
+                : null,
+        quotedMessageId: message.replyToId,
+      );
 
-    final newMessage = Message(
-      id: _mockMessages.length + 1,
-      content: message.content,
-      senderId: message.senderId,
-      receiverId: message.receiverId,
-      conversationId: message.conversationId,
-      messageType: message.messageType,
-      priority: message.priority,
-      isRead: false,
-      isEmergency: message.isEmergency,
-      createdAt: DateTime.now(),
-      metadata: message.metadata,
-      attachmentUrls: message.attachmentUrls,
-      replyToId: message.replyToId,
-    );
-
-    _mockMessages.add(newMessage);
-    return newMessage;
+      if (response.success && response.data != null) {
+        return Message.fromJson(response.data as Map<String, dynamic>);
+      } else {
+        throw Exception(response.message ?? 'Failed to send message');
+      }
+    } catch (e) {
+      debugPrint('Error sending message: $e');
+      rethrow;
+    }
   }
 
   Future<void> markMessageAsRead(int messageId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    final index = _mockMessages.indexWhere((msg) => msg.id == messageId);
-    if (index != -1) {
-      _mockMessages[index] = _mockMessages[index].copyWith(
-        isRead: true,
-        readAt: DateTime.now(),
-      );
+    try {
+      final response = await _apiService.markMessageAsRead(messageId);
+      if (!response.success) {
+        throw Exception(response.message ?? 'Failed to mark message as read');
+      }
+    } catch (e) {
+      debugPrint('Error marking message as read: $e');
+      rethrow;
     }
   }
 
@@ -654,8 +538,7 @@ class CommunityService {
       return [];
     } catch (e) {
       debugPrint('Error loading conversations: $e');
-      // Fallback to mock data if API fails
-      return List<Conversation>.from(_mockConversations);
+      return [];
     }
   }
 }

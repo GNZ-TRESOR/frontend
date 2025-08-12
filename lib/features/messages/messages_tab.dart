@@ -20,8 +20,18 @@ class _MessagesTabState extends ConsumerState<MessagesTab> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(messagesProvider.notifier).loadConversations();
+      _loadConversations();
     });
+  }
+
+  Future<void> _loadConversations() async {
+    try {
+      debugPrint('💬 Loading conversations...');
+      await ref.read(messagesProvider.notifier).loadConversations();
+      debugPrint('💬 Conversations loaded successfully');
+    } catch (e) {
+      debugPrint('💬 Error loading conversations: $e');
+    }
   }
 
   @override

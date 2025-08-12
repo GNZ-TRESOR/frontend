@@ -14,6 +14,18 @@ class User {
   final String? profileImageUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? lastLoginAt;
+  final String? district;
+  final String? sector;
+  final String? cell;
+  final String? village;
+  final String? emergencyContact;
+  final String? preferredLanguage;
+  final bool? emailVerified;
+  final bool? phoneVerified;
+  final String? deviceToken;
+  final String? platform;
+  final int? facilityId;
   final Map<String, dynamic>? additionalInfo;
 
   User({
@@ -29,6 +41,18 @@ class User {
     this.profileImageUrl,
     this.createdAt,
     this.updatedAt,
+    this.lastLoginAt,
+    this.district,
+    this.sector,
+    this.cell,
+    this.village,
+    this.emergencyContact,
+    this.preferredLanguage,
+    this.emailVerified,
+    this.phoneVerified,
+    this.deviceToken,
+    this.platform,
+    this.facilityId,
     this.additionalInfo,
   });
 
@@ -105,6 +129,18 @@ class User {
           json['profileImageUrl'], // Handle both formats
       createdAt: parseDate(json['createdAt']),
       updatedAt: parseDate(json['updatedAt']),
+      lastLoginAt: parseDate(json['lastLoginAt']),
+      district: json['district'],
+      sector: json['sector'],
+      cell: json['cell'],
+      village: json['village'],
+      emergencyContact: json['emergencyContact'],
+      preferredLanguage: json['preferredLanguage'],
+      emailVerified: json['emailVerified'],
+      phoneVerified: json['phoneVerified'],
+      deviceToken: json['deviceToken'],
+      platform: json['platform'],
+      facilityId: json['facilityId'],
       additionalInfo: json['additionalInfo'],
     );
   }
@@ -123,6 +159,18 @@ class User {
       'profileImageUrl': profileImageUrl,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'lastLoginAt': lastLoginAt?.toIso8601String(),
+      'district': district,
+      'sector': sector,
+      'cell': cell,
+      'village': village,
+      'emergencyContact': emergencyContact,
+      'preferredLanguage': preferredLanguage,
+      'emailVerified': emailVerified,
+      'phoneVerified': phoneVerified,
+      'deviceToken': deviceToken,
+      'platform': platform,
+      'facilityId': facilityId,
       'additionalInfo': additionalInfo,
     };
   }
@@ -140,6 +188,18 @@ class User {
     String? profileImageUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? lastLoginAt,
+    String? district,
+    String? sector,
+    String? cell,
+    String? village,
+    String? emergencyContact,
+    String? preferredLanguage,
+    bool? emailVerified,
+    bool? phoneVerified,
+    String? deviceToken,
+    String? platform,
+    int? facilityId,
     Map<String, dynamic>? additionalInfo,
   }) {
     return User(
@@ -155,6 +215,18 @@ class User {
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      district: district ?? this.district,
+      sector: sector ?? this.sector,
+      cell: cell ?? this.cell,
+      village: village ?? this.village,
+      emergencyContact: emergencyContact ?? this.emergencyContact,
+      preferredLanguage: preferredLanguage ?? this.preferredLanguage,
+      emailVerified: emailVerified ?? this.emailVerified,
+      phoneVerified: phoneVerified ?? this.phoneVerified,
+      deviceToken: deviceToken ?? this.deviceToken,
+      platform: platform ?? this.platform,
+      facilityId: facilityId ?? this.facilityId,
       additionalInfo: additionalInfo ?? this.additionalInfo,
     );
   }

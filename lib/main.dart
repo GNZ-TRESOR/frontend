@@ -72,6 +72,23 @@ import 'core/providers/language_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Set up global error handling for navigation and other Flutter errors
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // Log the error
+    debugPrint('Flutter Error: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+
+    // Handle navigation-specific errors gracefully
+    if (details.exception.toString().contains('history.isNotEmpty')) {
+      debugPrint('Navigation history error detected - handling gracefully');
+      // Don't crash the app for navigation errors
+      return;
+    }
+
+    // For other errors, use default handling
+    FlutterError.presentError(details);
+  };
+
   // Initialize core services
   await _initializeServices();
 

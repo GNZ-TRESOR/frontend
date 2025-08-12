@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/mixins/tts_screen_mixin.dart';
+import '../../core/utils/navigation_helper.dart';
 import '../auth/login_screen.dart';
 import '../settings/settings_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -32,7 +33,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => _handleBackNavigation(),
         ),
       ),
       body: Consumer(
@@ -340,6 +341,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   @override
   String getScreenName() => 'Profile';
+
+  /// Handle back navigation with proper fallback
+  void _handleBackNavigation() {
+    NavigationHelper.handleBackNavigation(context, ref);
+  }
 }
 
 /// Profile option data class

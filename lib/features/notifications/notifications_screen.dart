@@ -432,24 +432,33 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     try {
       final response = await ApiService.instance.getNotifications();
 
-      if (response.success && response.data != null) {
-        List<dynamic> notificationsJson;
-        if (response.data is Map<String, dynamic>) {
-          notificationsJson =
-              response.data['notifications'] ?? response.data['data'] ?? [];
-        } else if (response.data is List) {
-          notificationsJson = response.data;
-        } else {
-          notificationsJson = [];
+      if (response.success) {
+        List<dynamic> notificationsJson = [];
+
+        if (response.data != null) {
+          if (response.data is Map<String, dynamic>) {
+            notificationsJson =
+                response.data['notifications'] ?? response.data['data'] ?? [];
+          } else if (response.data is List) {
+            notificationsJson = response.data;
+          }
         }
 
         _notifications =
             notificationsJson
                 .map((json) => AppNotification.fromJson(json))
                 .toList();
+
+        // Clear any previous error since the request was successful
+        _error = null;
+
+        debugPrint(
+          '🔔 Successfully loaded ${_notifications.length} notifications',
+        );
       } else {
         _error = response.message ?? 'Failed to load notifications';
         _notifications = [];
+        debugPrint('🔔 API Error: $_error');
       }
     } catch (e) {
       _error = 'Failed to load notifications: $e';

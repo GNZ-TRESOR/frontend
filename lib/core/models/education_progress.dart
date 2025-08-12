@@ -39,8 +39,52 @@ class EducationProgress {
     this.updatedAt,
   });
 
-  factory EducationProgress.fromJson(Map<String, dynamic> json) =>
-      _$EducationProgressFromJson(json);
+  factory EducationProgress.fromJson(Map<String, dynamic> json) {
+    // Custom date parsing function to handle both String and List formats
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        return DateTime.tryParse(value);
+      } else if (value is List && value.length >= 3) {
+        // [year, month, day, hour, minute, second, nanosecond]
+        return DateTime(
+          value[0] as int,
+          value[1] as int,
+          value[2] as int,
+          value.length > 3 ? value[3] as int : 0,
+          value.length > 4 ? value[4] as int : 0,
+          value.length > 5 ? value[5] as int : 0,
+          value.length > 6
+              ? (value[6] as int) ~/ 1000000
+              : 0, // Convert nanoseconds to milliseconds
+        );
+      }
+      return null;
+    }
+
+    return EducationProgress(
+      id: json['id'] as int?,
+      user:
+          json['user'] != null
+              ? User.fromJson(json['user'] as Map<String, dynamic>)
+              : null,
+      lesson:
+          json['lesson'] != null
+              ? EducationLesson.fromJson(json['lesson'] as Map<String, dynamic>)
+              : null,
+      progressPercentage:
+          (json['progressPercentage'] as num?)?.toDouble() ?? 0.0,
+      isCompleted: json['isCompleted'] as bool? ?? false,
+      completedAt: parseDate(json['completedAt']),
+      timeSpentMinutes: (json['timeSpentMinutes'] as num?)?.toInt() ?? 0,
+      quizScore: (json['quizScore'] as num?)?.toDouble(),
+      quizAttempts: (json['quizAttempts'] as num?)?.toInt() ?? 0,
+      lastAccessedAt: parseDate(json['lastAccessedAt']),
+      notes: json['notes'] as String?,
+      createdAt: parseDate(json['createdAt']),
+      updatedAt: parseDate(json['updatedAt']),
+    );
+  }
 
   Map<String, dynamic> toJson() => _$EducationProgressToJson(this);
 
@@ -79,7 +123,7 @@ class EducationProgress {
   /// Get formatted time spent string
   String get formattedTimeSpent {
     if (timeSpentMinutes < 60) {
-      return '${timeSpentMinutes} min';
+      return '$timeSpentMinutes min';
     } else {
       final hours = timeSpentMinutes ~/ 60;
       final minutes = timeSpentMinutes % 60;
@@ -124,7 +168,7 @@ class EducationProgress {
     if (lastAccessedAt == null) return 'Never accessed';
     final now = DateTime.now();
     final difference = now.difference(lastAccessedAt!);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
     } else if (difference.inHours > 0) {
@@ -146,7 +190,8 @@ class EducationProgress {
   String get lessonTitle => lesson?.title ?? 'Unknown Lesson';
 
   /// Get lesson category (safe access)
-  String get lessonCategory => lesson?.categoryDisplayName ?? 'Unknown Category';
+  String get lessonCategory =>
+      lesson?.categoryDisplayName ?? 'Unknown Category';
 }
 
 /// Education Progress Statistics Model
@@ -172,7 +217,7 @@ class EducationProgressStatistics {
   /// Get formatted total time spent
   String get formattedTotalTimeSpent {
     if (totalTimeSpent < 60) {
-      return '${totalTimeSpent} min';
+      return '$totalTimeSpent min';
     } else {
       final hours = totalTimeSpent ~/ 60;
       final minutes = totalTimeSpent % 60;
@@ -194,10 +239,7 @@ class LessonWithProgress {
   final EducationLesson lesson;
   final EducationProgress? progress;
 
-  const LessonWithProgress({
-    required this.lesson,
-    this.progress,
-  });
+  const LessonWithProgress({required this.lesson, this.progress});
 
   factory LessonWithProgress.fromJson(Map<String, dynamic> json) =>
       _$LessonWithProgressFromJson(json);

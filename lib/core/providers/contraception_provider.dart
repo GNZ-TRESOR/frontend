@@ -1,6 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/contraception_method.dart';
-import '../models/side_effect_report.dart';
+import '../models/side_effect.dart';
 import '../services/api_service.dart';
 
 /// Contraception state
@@ -113,50 +114,82 @@ class ContraceptionNotifier extends StateNotifier<ContraceptionState> {
     }
   }
 
-  /// Load side effects
-  Future<void> loadSideEffects() async {
+  /// Load side effects for current user
+  Future<void> loadSideEffects({int? userId}) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final response = await _apiService.getUserSideEffects(
-        1,
-      ); // Add userId parameter
+      // Get current user ID if not provided
+      int? currentUserId = userId;
+      if (currentUserId == null) {
+        // Try to get from storage or auth service
+        try {
+          final userProfile = await _apiService.getUserProfile();
+          if (userProfile.success && userProfile.data != null) {
+            currentUserId = userProfile.data['id'];
+          }
+        } catch (e) {
+          debugPrint('🔧 Could not get user profile for side effects: $e');
+        }
+      }
+
+      if (currentUserId == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'User not authenticated',
+        );
+        return;
+      }
+
+      debugPrint('🔧 Loading side effects for user: $currentUserId');
+      final response = await _apiService.getUserSideEffects(currentUserId);
 
       if (response.success && response.data != null) {
         final data = response.data as Map<String, dynamic>;
         final effects =
-            (data['sideEffects'] as List<dynamic>)
-                .map(
-                  (json) =>
-                      SideEffectReport.fromJson(json as Map<String, dynamic>),
-                )
+            (data['sideEffects'] as List<dynamic>? ?? [])
+                .map((json) {
+                  try {
+                    return SideEffectReport.fromJson(
+                      json as Map<String, dynamic>,
+                    );
+                  } catch (e) {
+                    debugPrint('🔧 Error parsing side effect: $e');
+                    return null;
+                  }
+                })
+                .where((effect) => effect != null)
+                .cast<SideEffectReport>()
                 .toList();
 
         state = state.copyWith(sideEffects: effects, isLoading: false);
+        debugPrint('🔧 Successfully loaded ${effects.length} side effects');
       } else {
         state = state.copyWith(
           isLoading: false,
           error: response.message ?? 'Failed to load side effects',
         );
+        debugPrint('🔧 API Error loading side effects: ${response.message}');
       }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load side effects: $e',
       );
+      debugPrint('🔧 Exception loading side effects: $e');
     }
   }
 
   /// Initialize for health worker
   Future<void> initializeForHealthWorker() async {
     await loadContraceptionMethods();
-    await loadSideEffects();
+    await loadSideEffects(); // Will get user ID from auth
   }
 
   /// Initialize for user
   Future<void> initializeForUser({required int userId}) async {
     await loadUserContraception();
-    await loadSideEffects();
+    await loadSideEffects(userId: userId);
   }
 
   /// Add contraception method
@@ -256,10 +289,11 @@ class ContraceptionNotifier extends StateNotifier<ContraceptionState> {
     try {
       final response = await _apiService.createSideEffectReport({
         'contraceptionMethodId': sideEffect.contraceptionMethodId,
-        'symptom': sideEffect.symptom,
-        'severity': sideEffect.severity,
-        'notes': sideEffect.notes,
-        'reportedDate': sideEffect.reportedDate.toIso8601String(),
+        'sideEffectName': sideEffect.sideEffectName,
+        'severity': sideEffect.severity.name,
+        'frequency': sideEffect.frequency.name,
+        'description': sideEffect.description,
+        'dateReported': sideEffect.dateReported.toIso8601String(),
       });
 
       if (response.success) {

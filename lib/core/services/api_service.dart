@@ -2425,7 +2425,31 @@ class ApiService {
         '/notifications',
         queryParameters: queryParams,
       );
-      return ApiResponse.fromJson(response.data);
+
+      // Special handling for notifications response
+      // Backend returns: {"notifications": [...], "page": 0, "totalPages": 0, "success": true, "total": 0}
+      // But ApiResponse expects: {"success": true, "data": {...}}
+      Map<String, dynamic> responseData;
+
+      if (response.data is String) {
+        responseData = json.decode(response.data);
+      } else if (response.data is Map<String, dynamic>) {
+        responseData = Map<String, dynamic>.from(response.data);
+      } else {
+        responseData = {'success': false, 'message': 'Invalid response format'};
+      }
+
+      if (responseData.containsKey('notifications')) {
+        // Transform the response to include all notification data in data field
+        responseData['data'] = {
+          'notifications': responseData['notifications'],
+          'total': responseData['total'],
+          'page': responseData['page'],
+          'totalPages': responseData['totalPages'],
+        };
+      }
+
+      return ApiResponse.fromJson(responseData);
     } catch (e) {
       return _handleError(e);
     }
