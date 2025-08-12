@@ -76,15 +76,13 @@ class _ConversationDetailScreenState
       final user = ref.read(currentUserProvider);
       if (user?.id == null) return;
 
-      final messageData = {
-        'senderId': user!.id!,
-        'receiverId': widget.otherUser['id'],
-        'content': messageText,
-        'messageType': 'TEXT',
-        'priority': 'NORMAL',
-      };
-
-      final response = await ApiService.instance.sendMessage(messageData);
+      final response = await ApiService.instance.sendMessage(
+        senderId: user!.id!,
+        receiverId: widget.otherUser['id'],
+        content: messageText,
+        messageType: 'TEXT',
+        priority: 'NORMAL',
+      );
 
       if (response.success) {
         await _loadMessages(); // Reload messages to get the new one

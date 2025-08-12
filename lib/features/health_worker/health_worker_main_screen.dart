@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/widgets/loading_overlay.dart';
-import '../messages/conversation_detail_screen.dart';
-import 'health_worker_reports_screen.dart';
+import '../../core/widgets/retry_widget.dart';
+import '../messages/whatsapp_chat_screen.dart';
 import 'time_slots_management_screen.dart';
-import 'support_groups_management_screen.dart';
 import 'sti_test_records_screen.dart';
 import 'side_effect_reports_screen.dart';
 import 'community_events_screen.dart';
 import 'add_client_screen.dart';
+import 'appointment_detail_screen.dart';
+import 'client_detail_screen.dart';
+import '../../debug/health_worker_debug_screen.dart';
 
 /// Clean, unified Health Worker Main Screen
 /// Uses only working backend APIs with real data integration
@@ -31,9 +34,18 @@ class _HealthWorkerMainScreenState
   // Data from working APIs
   Map<String, dynamic> _dashboardStats = {};
   List<Map<String, dynamic>> _assignedClients = [];
+  Map<String, dynamic>? _assignmentInfo;
   List<Map<String, dynamic>> _appointments = [];
   List<Map<String, dynamic>> _conversations = [];
   int _unreadMessagesCount = 0;
+
+  // Error handling and retry functionality
+  String? _dashboardError;
+  String? _clientsError;
+  String? _appointmentsError;
+  String? _messagesError;
+  bool _hasConnectionError = false;
+  bool _isRetrying = false;
 
   @override
   void initState() {
@@ -41,14 +53,28 @@ class _HealthWorkerMainScreenState
     _loadHealthWorkerData();
   }
 
-  /// Load data using only working backend APIs
+  /// Load data using only working backend APIs with error handling
   Future<void> _loadHealthWorkerData() async {
     final user = ref.read(currentUserProvider);
-    if (user?.id == null) return;
+    debugPrint('👤 Current user: ${user?.toJson()}');
+    if (user?.id == null) {
+      debugPrint('❌ No user ID found, cannot load health worker data');
+      return;
+    }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _hasConnectionError = false;
+      _dashboardError = null;
+      _clientsError = null;
+      _appointmentsError = null;
+      _messagesError = null;
+    });
 
     try {
+      // Trigger appointment status update first to ensure current data
+      await _triggerAppointmentStatusUpdate();
+
       await Future.wait([
         _loadDashboardStats(user!.id!),
         _loadAssignedClients(user.id!),
@@ -58,49 +84,99 @@ class _HealthWorkerMainScreenState
       ]);
     } catch (e) {
       debugPrint('Error loading health worker data: $e');
+      setState(() {
+        _hasConnectionError = true;
+      });
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// Trigger appointment status update to ensure current statuses
+  Future<void> _triggerAppointmentStatusUpdate() async {
+    try {
+      debugPrint('🔄 Triggering appointment status update...');
+      final response = await ApiService.instance.dio.post(
+        '/health-worker/appointments/update-statuses',
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        debugPrint('✅ Appointment status update completed');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to trigger status update: $e');
+      // Don't fail the whole load process if status update fails
+    }
+  }
+
+  /// Retry loading data for specific section
+  Future<void> _retrySection(String section) async {
+    final user = ref.read(currentUserProvider);
+    if (user?.id == null) return;
+
+    setState(() {
+      _isRetrying = true;
+    });
+
+    try {
+      final userId = user!.id!;
+      switch (section) {
+        case 'dashboard':
+          await _loadDashboardStats(userId);
+          break;
+        case 'clients':
+          await _loadAssignedClients(userId);
+          break;
+        case 'appointments':
+          await _loadAppointments(userId);
+          break;
+        case 'messages':
+          await _loadConversations(userId);
+          break;
+        default:
+          await _loadHealthWorkerData();
+      }
+    } catch (e) {
+      debugPrint('Error retrying $section: $e');
+    } finally {
+      setState(() {
+        _isRetrying = false;
+      });
     }
   }
 
   /// Load dashboard statistics with improved error handling
   Future<void> _loadDashboardStats(int healthWorkerId) async {
     try {
+      debugPrint(
+        '🔍 Loading dashboard stats for health worker ID: $healthWorkerId',
+      );
       final response = await ApiService.instance.getHealthWorkerDashboardStats(
         healthWorkerId,
       );
-      if (response.success) {
-        // Handle both direct data access and nested stats field
-        if (response.data is Map) {
-          final responseData = Map<String, dynamic>.from(response.data as Map);
-          // Check if stats is present in the response
-          if (responseData.containsKey('stats')) {
-            setState(() {
-              _dashboardStats = Map<String, dynamic>.from(
-                responseData['stats'] ?? {},
-              );
-            });
-          } else {
-            // Use the data directly if no stats field
-            setState(() {
-              _dashboardStats = responseData;
-            });
-          }
-        } else {
-          debugPrint('Warning: Unexpected dashboard stats format');
-          setState(() {
-            _dashboardStats = {};
-          });
-        }
+      debugPrint(
+        '📊 Dashboard stats response: ${response.success} - ${response.message}',
+      );
+      if (response.success && response.data != null) {
+        // Now that API service handles the response format properly,
+        // we can directly use response.data
+        debugPrint('📊 Dashboard stats data: ${response.data}');
+        setState(() {
+          _dashboardStats = Map<String, dynamic>.from(response.data as Map);
+        });
       } else {
         debugPrint('Error loading dashboard stats: ${response.message}');
         setState(() {
+          _dashboardError =
+              response.message ?? 'Failed to load dashboard statistics';
           _dashboardStats = {};
         });
       }
     } catch (e) {
       debugPrint('Error loading dashboard stats: $e');
       setState(() {
+        _dashboardError =
+            'Connection error. Please check your internet connection.';
         _dashboardStats = {};
       });
     }
@@ -127,6 +203,11 @@ class _HealthWorkerMainScreenState
             _assignedClients = List<Map<String, dynamic>>.from(
               responseData['clients'] ?? [],
             );
+            _assignmentInfo = {
+              'assignmentType': responseData['assignmentType'],
+              'assignmentLocation': responseData['assignmentLocation'],
+              'totalClients': responseData['totalClients'],
+            };
           });
         } else {
           debugPrint('Warning: Unexpected clients response format');
@@ -137,12 +218,15 @@ class _HealthWorkerMainScreenState
       } else {
         debugPrint('Error loading clients: ${response.message}');
         setState(() {
+          _clientsError = response.message ?? 'Failed to load assigned clients';
           _assignedClients = [];
         });
       }
     } catch (e) {
       debugPrint('Error loading assigned clients: $e');
       setState(() {
+        _clientsError =
+            'Connection error. Please check your internet connection.';
         _assignedClients = [];
       });
     }
@@ -179,12 +263,16 @@ class _HealthWorkerMainScreenState
       } else {
         debugPrint('Error loading appointments: ${response.message}');
         setState(() {
+          _appointmentsError =
+              response.message ?? 'Failed to load appointments';
           _appointments = [];
         });
       }
     } catch (e) {
       debugPrint('Error loading appointments: $e');
       setState(() {
+        _appointmentsError =
+            'Connection error. Please check your internet connection.';
         _appointments = [];
       });
     }
@@ -222,12 +310,15 @@ class _HealthWorkerMainScreenState
       } else {
         debugPrint('Error loading conversations: ${response.message}');
         setState(() {
+          _messagesError = response.message ?? 'Failed to load conversations';
           _conversations = [];
         });
       }
     } catch (e) {
       debugPrint('Error loading conversations: $e');
       setState(() {
+        _messagesError =
+            'Connection error. Please check your internet connection.';
         _conversations = [];
       });
     }
@@ -252,6 +343,7 @@ class _HealthWorkerMainScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      appBar: _selectedIndex == 0 ? _buildAppBar(context) : null,
       body: LoadingOverlay(
         isLoading: _isLoading,
         child: IndexedStack(
@@ -301,28 +393,116 @@ class _HealthWorkerMainScreenState
     );
   }
 
+  /// Build app bar with logout and settings
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      title: Text(
+        'Health Worker Dashboard',
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+      ),
+      actions: [
+        // Debug button (temporary)
+        IconButton(
+          icon: const Icon(Icons.bug_report),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HealthWorkerDebugScreen(),
+              ),
+            );
+          },
+        ),
+        // Notifications icon
+        IconButton(
+          icon: Badge(
+            label: Text('$_unreadMessagesCount'),
+            child: const Icon(Icons.notifications),
+          ),
+          onPressed: () => _navigateToNotifications(),
+        ),
+        // Settings menu
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) => _handleMenuAction(value),
+          itemBuilder:
+              (context) => [
+                PopupMenuItem(
+                  value: 'profile',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Text('Profile'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.settings, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Text('Settings'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.logout, color: AppColors.error),
+                      const SizedBox(width: 12),
+                      Text('Logout', style: TextStyle(color: AppColors.error)),
+                    ],
+                  ),
+                ),
+              ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildDashboardTab() {
     final user = ref.watch(currentUserProvider);
     final stats = Map<String, dynamic>.from(_dashboardStats);
 
     return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _loadHealthWorkerData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWelcomeHeader(user),
-              const SizedBox(height: 24),
-              _buildStatsCards(stats),
-              const SizedBox(height: 24),
-              _buildQuickActions(),
-              const SizedBox(height: 24),
-              _buildRecentActivity(),
-            ],
+      child: Column(
+        children: [
+          // Connection error banner
+          RetryBanner(
+            message: _dashboardError,
+            onRetry: () => _retrySection('dashboard'),
+            isLoading: _isRetrying,
+            isVisible: _dashboardError != null,
           ),
-        ),
+
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadHealthWorkerData,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildWelcomeHeader(user),
+                    const SizedBox(height: 24),
+                    _buildStatsCards(stats),
+                    const SizedBox(height: 24),
+                    _buildQuickActions(),
+                    const SizedBox(height: 24),
+                    _buildRecentActivity(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -379,6 +559,28 @@ class _HealthWorkerMainScreenState
                     fontSize: 14,
                   ),
                 ),
+                // Show village assignment info
+                if (_dashboardStats.containsKey('assignmentType') &&
+                    _dashboardStats['assignmentType'] == 'village') ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        color: Colors.white.withValues(alpha: 0.8),
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Managing ${_dashboardStats['assignmentLocation']} village',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -689,29 +891,73 @@ class _HealthWorkerMainScreenState
     return SafeArea(
       child: Column(
         children: [
+          // Error banner
+          RetryBanner(
+            message: _clientsError,
+            onRetry: () => _retrySection('clients'),
+            isLoading: _isRetrying,
+            isVisible: _clientsError != null,
+          ),
+
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'My Clients',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Text(
+                      'My Clients',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${_assignedClients.length} clients',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                Text(
-                  '${_assignedClients.length} clients',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
+                if (_assignmentInfo != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '📍 ${_assignmentInfo!['assignmentType'] == 'village' ? 'Village' : 'Facility'}: ${_assignmentInfo!['assignmentLocation']}',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           Expanded(
             child:
-                _assignedClients.isEmpty
+                _clientsError != null && _assignedClients.isEmpty
+                    ? RetryWidget.apiError(
+                      title: 'Failed to Load Clients',
+                      message: _clientsError,
+                      onRetry: () => _retrySection('clients'),
+                      isLoading: _isRetrying,
+                    )
+                    : _assignedClients.isEmpty
                     ? _buildEmptyState(
                       'No Clients Assigned',
-                      'Assigned clients will appear here',
+                      'Clients from your village will appear here automatically',
                       Icons.people_outline,
                     )
                     : RefreshIndicator(
@@ -735,6 +981,14 @@ class _HealthWorkerMainScreenState
     return SafeArea(
       child: Column(
         children: [
+          // Error banner
+          RetryBanner(
+            message: _appointmentsError,
+            onRetry: () => _retrySection('appointments'),
+            isLoading: _isRetrying,
+            isVisible: _appointmentsError != null,
+          ),
+
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
@@ -754,7 +1008,14 @@ class _HealthWorkerMainScreenState
           ),
           Expanded(
             child:
-                _appointments.isEmpty
+                _appointmentsError != null && _appointments.isEmpty
+                    ? RetryWidget.apiError(
+                      title: 'Failed to Load Appointments',
+                      message: _appointmentsError,
+                      onRetry: () => _retrySection('appointments'),
+                      isLoading: _isRetrying,
+                    )
+                    : _appointments.isEmpty
                     ? _buildEmptyState(
                       'No Appointments',
                       'Scheduled appointments will appear here',
@@ -781,6 +1042,14 @@ class _HealthWorkerMainScreenState
     return SafeArea(
       child: Column(
         children: [
+          // Error banner
+          RetryBanner(
+            message: _messagesError,
+            onRetry: () => _retrySection('messages'),
+            isLoading: _isRetrying,
+            isVisible: _messagesError != null,
+          ),
+
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
@@ -800,7 +1069,14 @@ class _HealthWorkerMainScreenState
           ),
           Expanded(
             child:
-                _conversations.isEmpty
+                _messagesError != null && _conversations.isEmpty
+                    ? RetryWidget.apiError(
+                      title: 'Failed to Load Messages',
+                      message: _messagesError,
+                      onRetry: () => _retrySection('messages'),
+                      isLoading: _isRetrying,
+                    )
+                    : _conversations.isEmpty
                     ? _buildEmptyState(
                       'No Messages Yet',
                       'Start conversations with your clients',
@@ -865,37 +1141,166 @@ class _HealthWorkerMainScreenState
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [Text(client['email'] ?? ''), Text(client['phone'] ?? '')],
+          children: [
+            Text(client['email'] ?? ''),
+            Text(client['phone'] ?? ''),
+            if (client['village'] != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${client['village']}, ${client['cell'] ?? ''}'
+                        .trim()
+                        .replaceAll(RegExp(r',\s*$'), ''),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (client['phone'] != null &&
+                client['phone'].toString().isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.phone, color: AppColors.success),
+                onPressed: () => _makePhoneCall(client['phone']),
+                tooltip: 'Call ${client['name']}',
+              ),
+            const Icon(Icons.arrow_forward_ios, size: 16),
+          ],
+        ),
         onTap: () => _viewClientDetails(client),
       ),
     );
   }
 
   Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
+    final status = appointment['status']?.toString().toUpperCase() ?? 'UNKNOWN';
+    final statusInfo = _getAppointmentStatusInfo(status);
+    final scheduledDate =
+        appointment['scheduledDate'] ?? appointment['appointmentDate'];
+    final clientName = appointment['user']?['name'] ?? 'Unknown Client';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.success.withValues(alpha: 0.1),
-          child: Icon(Icons.calendar_today, color: AppColors.success),
+          backgroundColor: statusInfo['color'].withValues(alpha: 0.1),
+          child: Icon(statusInfo['icon'], color: statusInfo['color']),
         ),
         title: Text(
-          appointment['user']?['name'] ?? 'Unknown Client',
+          clientName,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(appointment['appointmentDate'] ?? ''),
-            Text(appointment['status'] ?? ''),
+            if (scheduledDate != null)
+              Text(
+                _formatAppointmentDate(scheduledDate),
+                style: const TextStyle(fontSize: 13),
+              ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: statusInfo['color'].withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: statusInfo['color'], width: 0.5),
+              ),
+              child: Text(
+                statusInfo['displayName'],
+                style: TextStyle(
+                  color: statusInfo['color'],
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () => _viewAppointmentDetails(appointment),
       ),
     );
+  }
+
+  Map<String, dynamic> _getAppointmentStatusInfo(String status) {
+    switch (status.toUpperCase()) {
+      case 'SCHEDULED':
+        return {
+          'displayName': 'Scheduled',
+          'color': AppColors.info,
+          'icon': Icons.schedule,
+        };
+      case 'CONFIRMED':
+        return {
+          'displayName': 'Confirmed',
+          'color': AppColors.success,
+          'icon': Icons.check_circle,
+        };
+      case 'IN_PROGRESS':
+        return {
+          'displayName': 'In Progress',
+          'color': AppColors.warning,
+          'icon': Icons.play_circle,
+        };
+      case 'COMPLETED':
+        return {
+          'displayName': 'Completed',
+          'color': AppColors.success,
+          'icon': Icons.check_circle_outline,
+        };
+      case 'CANCELLED':
+        return {
+          'displayName': 'Cancelled',
+          'color': AppColors.error,
+          'icon': Icons.cancel,
+        };
+      case 'NO_SHOW':
+        return {
+          'displayName': 'No Show',
+          'color': Colors.grey,
+          'icon': Icons.person_off,
+        };
+      case 'RESCHEDULED':
+        return {
+          'displayName': 'Rescheduled',
+          'color': AppColors.warning,
+          'icon': Icons.update,
+        };
+      default:
+        return {
+          'displayName': 'Unknown',
+          'color': Colors.grey,
+          'icon': Icons.help,
+        };
+    }
+  }
+
+  String _formatAppointmentDate(dynamic dateTime) {
+    if (dateTime == null) return 'No date';
+    try {
+      final DateTime dt = DateTime.parse(dateTime.toString());
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final appointmentDate = DateTime(dt.year, dt.month, dt.day);
+
+      if (appointmentDate == today) {
+        return 'Today at ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } else if (appointmentDate == today.add(const Duration(days: 1))) {
+        return 'Tomorrow at ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } else {
+        return '${dt.day}/${dt.month}/${dt.year} at ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+    } catch (e) {
+      return dateTime.toString();
+    }
   }
 
   Widget _buildConversationCard(Map<String, dynamic> conversation) {
@@ -946,25 +1351,65 @@ class _HealthWorkerMainScreenState
   }
 
   void _viewClientDetails(Map<String, dynamic> client) {
-    // TODO: Navigate to client details screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('View details for ${client['name']}')),
-    );
-  }
-
-  void _viewAppointmentDetails(Map<String, dynamic> appointment) {
-    // TODO: Navigate to appointment details screen
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('View appointment details')));
-  }
-
-  void _viewConversation(Map<String, dynamic> conversation) {
-    // Navigate to conversation detail screen
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ConversationDetailScreen(otherUser: conversation),
+        builder: (context) => ClientDetailScreen(client: client),
+      ),
+    );
+  }
+
+  /// Make a phone call to the client using the device's default phone app
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    try {
+      // Clean the phone number (remove spaces, dashes, etc.)
+      final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+
+      // Create the tel: URL
+      final Uri phoneUri = Uri(scheme: 'tel', path: cleanNumber);
+
+      // Check if the device can handle phone calls
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        // Fallback: show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cannot make phone calls on this device'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error making phone call: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to make phone call: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _viewAppointmentDetails(Map<String, dynamic> appointment) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AppointmentDetailScreen(appointment: appointment),
+      ),
+    );
+  }
+
+  void _viewConversation(Map<String, dynamic> conversation) {
+    // Navigate to WhatsApp-style chat screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WhatsAppChatScreen(otherUser: conversation),
       ),
     );
   }
@@ -1014,5 +1459,74 @@ class _HealthWorkerMainScreenState
       context,
       MaterialPageRoute(builder: (context) => const CommunityEventsScreen()),
     );
+  }
+
+  // App Bar Action Methods
+  void _navigateToNotifications() {
+    Navigator.pushNamed(context, '/notifications');
+  }
+
+  void _handleMenuAction(String action) {
+    switch (action) {
+      case 'profile':
+        _navigateToProfile();
+        break;
+      case 'settings':
+        _navigateToSettings();
+        break;
+      case 'logout':
+        _handleLogout();
+        break;
+    }
+  }
+
+  void _navigateToProfile() {
+    Navigator.pushNamed(context, '/profile');
+  }
+
+  void _navigateToSettings() {
+    Navigator.pushNamed(context, '/settings');
+  }
+
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Logout'),
+            content: const Text('Are you sure you want to logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: const Text('Logout'),
+              ),
+            ],
+          ),
+    );
+
+    if (shouldLogout == true) {
+      try {
+        await ref.read(authProvider.notifier).logout();
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/login', (route) => false);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Logout failed: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
   }
 }

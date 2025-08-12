@@ -332,7 +332,7 @@ class AppointmentNotifier extends StateNotifier<AppointmentState> {
       );
 
       // Add to current time slots list
-      final updatedTimeSlots = [...state.timeSlots, timeSlot];
+      final updatedTimeSlots = <TimeSlot>[...state.timeSlots, timeSlot];
       state = state.copyWith(timeSlots: updatedTimeSlots);
 
       return true;
@@ -363,7 +363,7 @@ class AppointmentNotifier extends StateNotifier<AppointmentState> {
 
       // Update in current time slots list
       final updatedTimeSlots =
-          state.timeSlots.map((timeSlot) {
+          state.timeSlots.map<TimeSlot>((timeSlot) {
             return timeSlot.id == timeSlotId ? updatedTimeSlot : timeSlot;
           }).toList();
 

@@ -13,9 +13,9 @@ class AppConfig {
 
   // Alternative backend URLs for different environments
   static const String localUrl =
-      'http://192.168.1.70:8080/api/v1'; // Use machine IP for reliable connectivity
+      'http://10.0.2.2:8080/api/v1'; // Android emulator localhost mapping (WiFi-independent)
   static const String developmentUrl =
-      'http://192.168.1.100:8080/api/v1'; // Update with your dev server IP
+      'http://10.0.2.2:8080/api/v1'; // Android emulator localhost mapping
   static const String productionUrl =
       'https://your-domain.com/api/v1'; // Update with your production URL
 

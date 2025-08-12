@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 /// A comprehensive text widget that automatically translates common strings
 class TranslatedText extends StatelessWidget {
@@ -51,9 +51,13 @@ class TranslatedText extends StatelessWidget {
 
   /// Get translated text for common strings
   String _getTranslatedText(BuildContext context, String originalText) {
-    final l = AppLocalizations.of(context);
-    if (l == null) return originalText;
+    // final l = AppLocalizations.of(context);
+    // if (l == null) return originalText;
 
+    // Temporarily return original text until localization is properly set up
+    return originalText;
+
+    /*
     // Create a comprehensive mapping of common strings
     final translations = <String, String>{
       // Basic UI
@@ -332,6 +336,7 @@ class TranslatedText extends StatelessWidget {
     };
 
     return translations[originalText] ?? originalText;
+    */
   }
 }
 

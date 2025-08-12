@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -197,7 +197,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
         // Welcome text
         Text(
-          AppLocalizations.of(context)!.welcomeBack,
+          'Welcome Back',
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
@@ -208,7 +208,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         const SizedBox(height: 8),
 
         Text(
-          AppLocalizations.of(context)!.signInToContinue,
+          'Sign in to continue',
           style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
           textAlign: TextAlign.center,
         ),
@@ -227,16 +227,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.emailAddress,
-              hintText: AppLocalizations.of(context)!.enterEmail,
+              labelText: 'Email Address',
+              hintText: 'Enter your email',
               prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return AppLocalizations.of(context)!.pleaseEnterEmail;
+                return 'Please enter your email';
               }
               if (!AppConstants.isValidEmail(value)) {
-                return AppLocalizations.of(context)!.pleaseEnterValidEmail;
+                return 'Please enter a valid email';
               }
               return null;
             },
@@ -251,8 +251,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _handleLogin(),
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.password,
-              hintText: AppLocalizations.of(context)!.enterPassword,
+              labelText: 'Password',
+              hintText: 'Enter your password',
               prefixIcon: Icon(Icons.lock_outlined, color: AppColors.primary),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -270,10 +270,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return AppLocalizations.of(context)!.pleaseEnterPassword;
+                return 'Please enter your password';
               }
               if (value.length < 6) {
-                return AppLocalizations.of(context)!.passwordTooShort;
+                return 'Password must be at least 6 characters';
               }
               return null;
             },
@@ -294,7 +294,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 activeColor: AppColors.primary,
               ),
               Text(
-                AppLocalizations.of(context)!.rememberMe,
+                'Remember me',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
               ),
             ],
@@ -331,7 +331,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                 )
                 : Text(
-                  AppLocalizations.of(context)!.signIn,
+                  'Sign In',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -350,7 +350,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         );
       },
       child: Text(
-        AppLocalizations.of(context)!.forgotPassword,
+        'Forgot Password?',
         style: TextStyle(
           color: AppColors.primary,
           fontSize: 16,
@@ -367,7 +367,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            AppLocalizations.of(context)!.or,
+            'OR',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 14,
@@ -384,7 +384,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Column(
       children: [
         Text(
-          AppLocalizations.of(context)!.dontHaveAccount,
+          "Don't have an account?",
           style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -395,7 +395,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           child: Text(
-            AppLocalizations.of(context)!.createAccount,
+            'Create Account',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
@@ -407,7 +407,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Column(
       children: [
         Text(
-          AppLocalizations.of(context)!.bySigningIn,
+          'By signing in, you agree to our',
           style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 4),
@@ -425,12 +425,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                AppLocalizations.of(context)!.termsOfService,
+                'Terms of Service',
                 style: const TextStyle(fontSize: 12),
               ),
             ),
             Text(
-              AppLocalizations.of(context)!.and,
+              ' and ',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
             TextButton(
@@ -444,7 +444,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                AppLocalizations.of(context)!.privacyPolicy,
+                'Privacy Policy',
                 style: const TextStyle(fontSize: 12),
               ),
             ),

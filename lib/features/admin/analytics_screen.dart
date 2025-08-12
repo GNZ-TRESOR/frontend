@@ -73,19 +73,19 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           'newUsers': analyticsData['newUsersThisMonth'] ?? 0,
           'dailyActiveUsers': analyticsData['activeUsers'] ?? 0,
           'monthlyActiveUsers': analyticsData['activeUsers'] ?? 0,
-          'retentionRate': 85, // Mock data for now
+          'retentionRate': analyticsData['retentionRate'] ?? 0,
           'newHealthRecords': dashboardData['totalHealthRecords'] ?? 0,
           'newAppointments': dashboardData['totalAppointments'] ?? 0,
-          'activeMedications': 0, // Mock data
-          'cycleTrackingUsers': 0, // Mock data
-          'communityEvents': 0, // Mock data
-          'eventRegistrations': 0, // Mock data
-          'messagesSent': 0, // Mock data
-          'feedbackCount': 0, // Mock data
-          'systemUptime': 99.9, // Mock data
-          'avgResponseTime': 120, // Mock data
-          'errorRate': 0.1, // Mock data
-          'databaseHealth': 'Healthy', // Mock data
+          'activeMedications': analyticsData['activeMedications'] ?? 0,
+          'cycleTrackingUsers': analyticsData['cycleTrackingUsers'] ?? 0,
+          'communityEvents': analyticsData['communityEvents'] ?? 0,
+          'eventRegistrations': analyticsData['eventRegistrations'] ?? 0,
+          'messagesSent': analyticsData['messagesSent'] ?? 0,
+          'feedbackCount': analyticsData['feedbackCount'] ?? 0,
+          'systemUptime': analyticsData['systemUptime'] ?? 0,
+          'avgResponseTime': analyticsData['avgResponseTime'] ?? 0,
+          'errorRate': analyticsData['errorRate'] ?? 0,
+          'databaseHealth': analyticsData['databaseHealth'] ?? 'Unknown',
         };
       } else {
         _error =

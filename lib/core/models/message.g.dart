@@ -30,6 +30,30 @@ Message _$MessageFromJson(Map<String, dynamic> json) => Message(
       (json['attachmentUrls'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
+  deliveredAt:
+      json['deliveredAt'] == null
+          ? null
+          : DateTime.parse(json['deliveredAt'] as String),
+  audioDuration: (json['audioDuration'] as num?)?.toInt(),
+  audioUrl: json['audioUrl'] as String?,
+  fileSize: (json['fileSize'] as num?)?.toInt(),
+  mimeType: json['mimeType'] as String?,
+  thumbnailUrl: json['thumbnailUrl'] as String?,
+  isForwarded: json['isForwarded'] as bool?,
+  forwardedFrom: json['forwardedFrom'] as String?,
+  editedAt:
+      json['editedAt'] == null
+          ? null
+          : DateTime.parse(json['editedAt'] as String),
+  deletedAt:
+      json['deletedAt'] == null
+          ? null
+          : DateTime.parse(json['deletedAt'] as String),
+  deletedForEveryone: json['deletedForEveryone'] as bool?,
+  quotedMessageId: (json['quotedMessageId'] as num?)?.toInt(),
+  messageStatus: json['messageStatus'] as String?,
+  reaction: json['reaction'] as String?,
+  starred: json['starred'] as bool?,
 );
 
 Map<String, dynamic> _$MessageToJson(Message instance) => <String, dynamic>{
@@ -49,6 +73,21 @@ Map<String, dynamic> _$MessageToJson(Message instance) => <String, dynamic>{
   'receiverId': instance.receiverId,
   'senderId': instance.senderId,
   'attachmentUrls': instance.attachmentUrls,
+  'deliveredAt': instance.deliveredAt?.toIso8601String(),
+  'audioDuration': instance.audioDuration,
+  'audioUrl': instance.audioUrl,
+  'fileSize': instance.fileSize,
+  'mimeType': instance.mimeType,
+  'thumbnailUrl': instance.thumbnailUrl,
+  'isForwarded': instance.isForwarded,
+  'forwardedFrom': instance.forwardedFrom,
+  'editedAt': instance.editedAt?.toIso8601String(),
+  'deletedAt': instance.deletedAt?.toIso8601String(),
+  'deletedForEveryone': instance.deletedForEveryone,
+  'quotedMessageId': instance.quotedMessageId,
+  'messageStatus': instance.messageStatus,
+  'reaction': instance.reaction,
+  'starred': instance.starred,
 };
 
 const _$MessageTypeEnumMap = {

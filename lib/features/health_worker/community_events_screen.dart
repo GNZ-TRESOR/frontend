@@ -269,6 +269,12 @@ class _CommunityEventsScreenState extends ConsumerState<CommunityEventsScreen>
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateEventDialog,
+        backgroundColor: AppColors.primary,
+        tooltip: 'Create Event',
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 

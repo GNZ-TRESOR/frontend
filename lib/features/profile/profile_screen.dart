@@ -8,6 +8,7 @@ import '../auth/login_screen.dart';
 import '../settings/settings_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../feedback/feedback_screen.dart';
+import 'edit_profile_screen.dart';
 
 /// Professional Profile Screen
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -29,7 +30,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         title: const Text('Profile'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Consumer(
         builder: (context, ref, child) {
@@ -116,8 +120,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         subtitle: 'Update your personal information',
         icon: Icons.edit,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Edit profile feature coming soon!')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const EditProfileScreen()),
           );
         },
       ),
@@ -286,10 +291,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               ),
               TextButton(
                 onPressed: () async {
-                  Navigator.pop(context);
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
                   await ref.read(authProvider.notifier).logout();
                   if (mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
+                    navigator.pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (context) => const LoginScreen(),
                       ),
@@ -332,6 +338,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     return buffer.toString();
   }
 
+  @override
   String getScreenName() => 'Profile';
 }
 

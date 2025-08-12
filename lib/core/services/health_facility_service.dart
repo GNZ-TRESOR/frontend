@@ -105,7 +105,7 @@ class HealthFacilityService {
   /// Get health facility by ID
   Future<HealthFacility?> getHealthFacility(int facilityId) async {
     try {
-      final response = await _apiService.getHealthFacility(facilityId);
+      final response = await _apiService.getHealthFacilityById(facilityId);
 
       if (response.success && response.data != null) {
         return HealthFacility.fromJson(response.data);
@@ -127,31 +127,18 @@ class HealthFacilityService {
     int size = 20,
   }) async {
     try {
-      final response = await _apiService.getHealthWorkers(
-        healthFacilityId: healthFacilityId,
-        specialization: specialization,
-        isAvailable: isAvailable,
+      // API does not support fetching health workers by facility ID directly.
+      // Using getAllUsers with role 'HEALTH_WORKER' as a substitute.
+      // Further filtering by facility would need to happen client-side or be added to the API.
+      final response = await _apiService.getAllUsers(
+        role: 'HEALTH_WORKER',
         page: page,
         size: size,
       );
 
       if (response.success && response.data != null) {
-        // Handle different response formats
-        List<dynamic> healthWorkersJson;
-        if (response.data is Map<String, dynamic>) {
-          // Check for healthWorkers field first, then fallback to data/content
-          healthWorkersJson =
-              response.data['healthWorkers'] ??
-              response.data['data'] ??
-              response.data['content'] ??
-              [];
-        } else if (response.data is List) {
-          healthWorkersJson = response.data;
-        } else {
-          healthWorkersJson = [];
-        }
-
-        return healthWorkersJson
+        final List<dynamic> usersJson = response.data['users'] ?? [];
+        return usersJson
             .map((json) => HealthWorker.fromJson(json))
             .toList();
       }
@@ -270,7 +257,7 @@ class HealthFacilityService {
     final lowerQuery = query.toLowerCase();
     return facilities.where((facility) {
       return facility.name.toLowerCase().contains(lowerQuery) ||
-          (facility.address?.toLowerCase().contains(lowerQuery) ?? false);
+          facility.address.toLowerCase().contains(lowerQuery);
     }).toList();
   }
 

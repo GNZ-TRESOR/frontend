@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/unified_language_provider.dart';
 import '../../core/providers/global_translation_provider.dart' as global;
-import '../../core/widgets/global_translated_text.dart';
+import '../../core/providers/auth_provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/loading_overlay.dart';
@@ -21,14 +21,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
-
-  // Mock settings - in real app, this would come from provider
-  UserSettings _settings = UserSettings(userId: 1);
+  UserSettings? _settings;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(
+      length: 5,
+      vsync: this,
+    ); // Added notification management tab
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final authState = ref.read(authProvider);
+      if (authState.user != null) {
+        // Create default settings for the user
+        _settings = UserSettings(userId: authState.user!.id ?? 0);
+      } else {
+        _error = 'User not authenticated';
+      }
+    } catch (e) {
+      _error = 'Failed to load settings: $e';
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -39,6 +63,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Settings'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, size: 64, color: AppColors.error),
+              const SizedBox(height: 16),
+              Text(_error!, style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadSettings,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_settings == null) {
+      return const Scaffold(body: Center(child: Text('No settings available')));
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -55,6 +112,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             Tab(text: 'General'),
             Tab(text: 'Notifications'),
             Tab(text: 'Privacy'),
+            Tab(text: 'Manage'),
             Tab(text: 'About'),
           ],
         ),
@@ -89,7 +147,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           _buildSettingCard(
             title: 'Theme',
-            subtitle: _settings.themeDisplayName,
+            subtitle: _settings!.themeDisplayName,
             icon: Icons.palette,
             onTap: () => _showThemeDialog(),
           ),
@@ -97,13 +155,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           _buildSectionHeader('Format'),
           _buildSettingCard(
             title: 'Date Format',
-            subtitle: _settings.dateFormatDisplayName,
+            subtitle: _settings!.dateFormatDisplayName,
             icon: Icons.date_range,
             onTap: () => _showDateFormatDialog(),
           ),
           _buildSettingCard(
             title: 'Time Format',
-            subtitle: _settings.timeFormatDisplayName,
+            subtitle: _settings!.timeFormatDisplayName,
             icon: Icons.access_time,
             onTap: () => _showTimeFormatDialog(),
           ),
@@ -113,7 +171,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: 'Biometric Login',
             subtitle: 'Use fingerprint or face recognition',
             icon: Icons.fingerprint,
-            value: _settings.biometricLogin,
+            value: _settings!.biometricLogin,
             onChanged: (value) => _updateSetting('biometricLogin', value),
           ),
         ],
@@ -132,7 +190,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: 'Enable Notifications',
             subtitle: 'Turn on/off all notifications',
             icon: Icons.notifications,
-            value: _settings.notificationsEnabled,
+            value: _settings!.notificationsEnabled,
             onChanged: (value) => _updateSetting('notificationsEnabled', value),
           ),
           const SizedBox(height: 24),
@@ -141,28 +199,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: 'Push Notifications',
             subtitle: 'Receive push notifications on your device',
             icon: Icons.phone_android,
-            value: _settings.pushNotificationsEnabled,
+            value: _settings!.pushNotificationsEnabled,
             onChanged:
                 (value) => _updateSetting('pushNotificationsEnabled', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
           _buildSwitchCard(
             title: 'Email Notifications',
             subtitle: 'Receive notifications via email',
             icon: Icons.email,
-            value: _settings.emailNotificationsEnabled,
+            value: _settings!.emailNotificationsEnabled,
             onChanged:
                 (value) => _updateSetting('emailNotificationsEnabled', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
           _buildSwitchCard(
             title: 'SMS Notifications',
             subtitle: 'Receive notifications via SMS',
             icon: Icons.sms,
-            value: _settings.smsNotificationsEnabled,
+            value: _settings!.smsNotificationsEnabled,
             onChanged:
                 (value) => _updateSetting('smsNotificationsEnabled', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
           const SizedBox(height: 24),
           _buildSectionHeader('Reminders'),
@@ -170,25 +228,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: 'Appointment Reminders',
             subtitle: 'Get reminded about upcoming appointments',
             icon: Icons.event,
-            value: _settings.appointmentReminders,
+            value: _settings!.appointmentReminders,
             onChanged: (value) => _updateSetting('appointmentReminders', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
           _buildSwitchCard(
             title: 'Medication Reminders',
             subtitle: 'Get reminded to take your medications',
             icon: Icons.medication,
-            value: _settings.medicationReminders,
+            value: _settings!.medicationReminders,
             onChanged: (value) => _updateSetting('medicationReminders', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
           _buildSwitchCard(
             title: 'Period Reminders',
             subtitle: 'Get reminded about your menstrual cycle',
             icon: Icons.favorite,
-            value: _settings.periodReminders,
+            value: _settings!.periodReminders,
             onChanged: (value) => _updateSetting('periodReminders', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
           const SizedBox(height: 24),
           _buildSectionHeader('Content'),
@@ -196,17 +254,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: 'Health Tips',
             subtitle: 'Receive helpful health tips and advice',
             icon: Icons.lightbulb,
-            value: _settings.healthTips,
+            value: _settings!.healthTips,
             onChanged: (value) => _updateSetting('healthTips', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
           _buildSwitchCard(
             title: 'Marketing Emails',
             subtitle: 'Receive promotional content and updates',
             icon: Icons.campaign,
-            value: _settings.marketingEmails,
+            value: _settings!.marketingEmails,
             onChanged: (value) => _updateSetting('marketingEmails', value),
-            enabled: _settings.notificationsEnabled,
+            enabled: _settings!.notificationsEnabled,
           ),
         ],
       ),
@@ -222,7 +280,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           _buildSectionHeader('Privacy Level'),
           _buildSettingCard(
             title: 'Privacy Settings',
-            subtitle: _settings.privacyLevelDisplayName,
+            subtitle: _settings!.privacyLevelDisplayName,
             icon: Icons.privacy_tip,
             onTap: () => _showPrivacyLevelDialog(),
           ),
@@ -232,7 +290,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: 'Share Data for Research',
             subtitle: 'Help improve healthcare by sharing anonymous data',
             icon: Icons.science,
-            value: _settings.shareDataForResearch,
+            value: _settings!.shareDataForResearch,
             onChanged: (value) => _updateSetting('shareDataForResearch', value),
           ),
           const SizedBox(height: 24),
@@ -455,37 +513,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     setState(() {
       switch (key) {
         case 'notificationsEnabled':
-          _settings = _settings.copyWith(notificationsEnabled: value);
+          _settings = _settings!.copyWith(notificationsEnabled: value);
           break;
         case 'pushNotificationsEnabled':
-          _settings = _settings.copyWith(pushNotificationsEnabled: value);
+          _settings = _settings!.copyWith(pushNotificationsEnabled: value);
           break;
         case 'emailNotificationsEnabled':
-          _settings = _settings.copyWith(emailNotificationsEnabled: value);
+          _settings = _settings!.copyWith(emailNotificationsEnabled: value);
           break;
         case 'smsNotificationsEnabled':
-          _settings = _settings.copyWith(smsNotificationsEnabled: value);
+          _settings = _settings!.copyWith(smsNotificationsEnabled: value);
           break;
         case 'appointmentReminders':
-          _settings = _settings.copyWith(appointmentReminders: value);
+          _settings = _settings!.copyWith(appointmentReminders: value);
           break;
         case 'medicationReminders':
-          _settings = _settings.copyWith(medicationReminders: value);
+          _settings = _settings!.copyWith(medicationReminders: value);
           break;
         case 'periodReminders':
-          _settings = _settings.copyWith(periodReminders: value);
+          _settings = _settings!.copyWith(periodReminders: value);
           break;
         case 'healthTips':
-          _settings = _settings.copyWith(healthTips: value);
+          _settings = _settings!.copyWith(healthTips: value);
           break;
         case 'marketingEmails':
-          _settings = _settings.copyWith(marketingEmails: value);
+          _settings = _settings!.copyWith(marketingEmails: value);
           break;
         case 'shareDataForResearch':
-          _settings = _settings.copyWith(shareDataForResearch: value);
+          _settings = _settings!.copyWith(shareDataForResearch: value);
           break;
         case 'biometricLogin':
-          _settings = _settings.copyWith(biometricLogin: value);
+          _settings = _settings!.copyWith(biometricLogin: value);
           break;
       }
     });
@@ -573,7 +631,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                 // Update the settings model for consistency
                                 if (mounted) {
                                   setState(() {
-                                    _settings = _settings.copyWith(
+                                    _settings = _settings!.copyWith(
                                       language: value,
                                     );
                                   });
@@ -627,11 +685,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     return RadioListTile<String>(
       title: Text(name),
       value: value,
-      groupValue: _settings.theme,
+      groupValue: _settings!.theme,
       onChanged: (newValue) {
         if (newValue != null) {
           setState(() {
-            _settings = _settings.copyWith(theme: newValue);
+            _settings = _settings!.copyWith(theme: newValue);
           });
           Navigator.pop(context);
           _saveSettings();

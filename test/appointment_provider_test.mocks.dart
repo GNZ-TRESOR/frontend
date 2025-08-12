@@ -335,36 +335,4 @@ class MockAppointmentService extends _i1.Mock
             returnValue: _i5.Future<bool>.value(false),
           )
           as _i5.Future<bool>);
-
-  @override
-  List<Map<String, String>> getAppointmentTypes() =>
-      (super.noSuchMethod(
-            Invocation.method(#getAppointmentTypes, []),
-            returnValue: <Map<String, String>>[],
-          )
-          as List<Map<String, String>>);
-
-  @override
-  List<Map<String, String>> getAppointmentStatuses() =>
-      (super.noSuchMethod(
-            Invocation.method(#getAppointmentStatuses, []),
-            returnValue: <Map<String, String>>[],
-          )
-          as List<Map<String, String>>);
-
-  @override
-  bool canPerformAction(
-    String? action,
-    String? userRole, {
-    bool? isOwner = false,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(
-              #canPerformAction,
-              [action, userRole],
-              {#isOwner: isOwner},
-            ),
-            returnValue: false,
-          )
-          as bool);
 }

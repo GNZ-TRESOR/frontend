@@ -102,6 +102,8 @@ class AppColors {
   static const Color healthWorkerLight = Color(0xFFE3F2FD);
   static const Color clientPink = Color(0xFFE91E63);
   static const Color clientLight = Color(0xFFFCE4EC);
+  static const Color clientOrange = Color(0xFFFF9800);
+  static const Color appointmentGreen = Color(0xFF4CAF50);
 
   // Gradient Colors for enhanced UI
   static const LinearGradient primaryGradient = LinearGradient(

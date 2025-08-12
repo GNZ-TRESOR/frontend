@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/loading_overlay.dart';
 import '../../core/models/notification.dart';
 import '../../core/services/api_service.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/providers/notification_provider.dart';
 
 /// Professional Notifications Screen
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -142,9 +145,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         _notifications
             .where(
               (notification) =>
-                  notification.priority == 'high' ||
-                  notification.priority == 'urgent' ||
-                  notification.type == 'emergency',
+                  notification.priority >= 3 ||
+                  notification.notificationType == 'EMERGENCY_ALERT',
             )
             .toList();
 
@@ -198,13 +200,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                       height: 48,
                       decoration: BoxDecoration(
                         color: _getNotificationTypeColor(
-                          notification.type,
+                          notification.notificationType,
                         ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        _getNotificationTypeIcon(notification.type),
-                        color: _getNotificationTypeColor(notification.type),
+                        _getNotificationTypeIcon(notification.notificationType),
+                        color: _getNotificationTypeColor(
+                          notification.notificationType,
+                        ),
                         size: 24,
                       ),
                     ),
@@ -256,7 +260,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                                       ),
                                       decoration: BoxDecoration(
                                         color: _getNotificationTypeColor(
-                                          notification.type,
+                                          notification.notificationType,
                                         ).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -266,7 +270,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                           color: _getNotificationTypeColor(
-                                            notification.type,
+                                            notification.notificationType,
                                           ),
                                         ),
                                       ),
@@ -287,7 +291,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                                           ),
                                         ),
                                         child: Text(
-                                          notification.priorityDisplayName,
+                                          notification.priorityText,
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
@@ -333,7 +337,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                           onPressed:
                               () => _handleNotificationAction(notification),
                           child: Text(
-                            notification.actionDisplayText,
+                            notification.hasAction ? 'View' : 'Dismiss',
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -429,19 +433,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
       final response = await ApiService.instance.getNotifications();
 
       if (response.success && response.data != null) {
-        final notificationsList = response.data as List<dynamic>;
+        List<dynamic> notificationsJson;
+        if (response.data is Map<String, dynamic>) {
+          notificationsJson =
+              response.data['notifications'] ?? response.data['data'] ?? [];
+        } else if (response.data is List) {
+          notificationsJson = response.data;
+        } else {
+          notificationsJson = [];
+        }
+
         _notifications =
-            notificationsList
+            notificationsJson
                 .map((json) => AppNotification.fromJson(json))
                 .toList();
       } else {
-        // Fallback to mock data if API fails
-        _notifications = _getMockNotifications();
+        _error = response.message ?? 'Failed to load notifications';
+        _notifications = [];
       }
     } catch (e) {
       _error = 'Failed to load notifications: $e';
-      // Fallback to mock data on error
-      _notifications = _getMockNotifications();
+      _notifications = [];
     } finally {
       if (mounted) {
         setState(() {
@@ -480,73 +492,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         ],
       ),
     );
-  }
-
-  // Mock data fallback
-  List<AppNotification> _getMockNotifications() {
-    return [
-      AppNotification(
-        id: 1,
-        userId: 1,
-        title: 'Appointment Reminder',
-        message: 'You have an appointment with Dr. Smith tomorrow at 2:00 PM',
-        type: 'appointment',
-        priority: 'high',
-        isRead: false,
-        actionType: 'view_appointment',
-        actionData: '{"appointmentId": 123}',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      AppNotification(
-        id: 2,
-        userId: 1,
-        title: 'Medication Reminder',
-        message: 'Time to take your birth control pill',
-        type: 'medication',
-        priority: 'normal',
-        isRead: false,
-        actionType: 'take_medication',
-        actionData: '{"medicationId": 456}',
-        createdAt: DateTime.now().subtract(const Duration(hours: 8)),
-      ),
-      AppNotification(
-        id: 3,
-        userId: 1,
-        title: 'Period Tracking',
-        message: 'Your period is expected to start in 3 days',
-        type: 'period',
-        priority: 'normal',
-        isRead: true,
-        actionType: 'log_period',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        readAt: DateTime.now().subtract(const Duration(hours: 12)),
-      ),
-      AppNotification(
-        id: 4,
-        userId: 1,
-        title: 'Health Tip',
-        message:
-            'Did you know? Regular exercise can help reduce menstrual cramps',
-        type: 'health_tip',
-        priority: 'low',
-        isRead: true,
-        actionType: 'read_tip',
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        readAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      AppNotification(
-        id: 5,
-        userId: 1,
-        title: 'System Update',
-        message:
-            'New features available! Update the app to get the latest improvements',
-        type: 'system',
-        priority: 'normal',
-        isRead: false,
-        actionType: 'update_app',
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      ),
-    ];
   }
 
   // Action methods
@@ -676,7 +621,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
   }
 
   void _handleNotificationAction(AppNotification notification) {
-    switch (notification.actionType?.toLowerCase()) {
+    if (notification.actionUrl != null) {
+      // Handle navigation based on action URL
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Navigating to: ${notification.actionUrl}')),
+      );
+      return;
+    }
+
+    // Fallback handling based on notification type
+    switch (notification.notificationType.toLowerCase()) {
       case 'view_appointment':
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Opening appointment details...')),
@@ -704,7 +658,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Action: ${notification.actionDisplayText}')),
+          SnackBar(
+            content: Text(
+              'Action: ${notification.hasAction ? 'View' : 'Dismiss'}',
+            ),
+          ),
         );
     }
   }

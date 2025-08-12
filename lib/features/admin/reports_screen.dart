@@ -50,11 +50,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           print('Analytics error: $e');
           return ApiResponse.error(message: 'Analytics failed');
         }),
-        ApiService.instance.getAdminUsers().catchError((e) {
+                ApiService.instance.getAllUsers().catchError((e) {
           print('Admin users error: $e');
           return ApiResponse.error(message: 'Admin users failed');
         }),
-        ApiService.instance.getHealthWorkers().catchError((e) {
+                ApiService.instance.getAllUsers(role: 'HEALTH_WORKER').catchError((e) {
           print('Health workers error: $e');
           return ApiResponse.error(message: 'Health workers failed');
         }),
@@ -66,7 +66,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           print('Health records error: $e');
           return ApiResponse.error(message: 'Health records failed');
         }),
-        ApiService.instance.getAppointments().catchError((e) {
+                ApiService.instance.getAdminAppointments().catchError((e) {
           print('Appointments error: $e');
           return ApiResponse.error(message: 'Appointments failed');
         }),

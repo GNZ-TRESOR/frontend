@@ -1,7 +1,5 @@
 import '../models/appointment.dart';
 import '../models/time_slot.dart';
-import '../models/health_worker.dart';
-import '../models/health_facility.dart';
 import 'api_service.dart';
 
 /// Comprehensive Appointment Service with Role-Based CRUD Operations
@@ -23,13 +21,13 @@ class AppointmentService {
       final response = await _apiService.getAppointments(
         page: page,
         size: size,
+        status: status,
+        date: date,
       );
 
       if (response.success && response.data != null) {
-        // Handle different response formats
         List<dynamic> appointmentsJson;
         if (response.data is Map<String, dynamic>) {
-          // If response has 'data' field, use it; otherwise try 'content'
           appointmentsJson =
               response.data['data'] ?? response.data['content'] ?? [];
         } else if (response.data is List) {
@@ -38,18 +36,13 @@ class AppointmentService {
           appointmentsJson = [];
         }
 
-        print('DEBUG: Parsing ${appointmentsJson.length} appointments');
         final appointments = <Appointment>[];
         for (int i = 0; i < appointmentsJson.length; i++) {
           try {
             final appointment = Appointment.fromJson(appointmentsJson[i]);
             appointments.add(appointment);
-            print(
-              'DEBUG: Parsed appointment ${appointment.id}: ${appointment.scheduledDate}, status: ${appointment.status}, isUpcoming: ${appointment.isUpcoming}',
-            );
           } catch (e) {
-            print('DEBUG: Failed to parse appointment $i: $e');
-            print('DEBUG: Raw JSON: ${appointmentsJson[i]}');
+            continue;
           }
         }
         return appointments;
@@ -74,7 +67,6 @@ class AppointmentService {
       );
 
       if (response.success && response.data != null) {
-        // Handle different response formats
         List<dynamic> appointmentsJson;
         if (response.data is Map<String, dynamic>) {
           appointmentsJson =
@@ -106,23 +98,23 @@ class AppointmentService {
     String? notes,
   }) async {
     try {
-      // Get current user ID
       final userProfileResponse = await _apiService.getUserProfile();
       if (!userProfileResponse.success || userProfileResponse.data == null) {
         throw Exception('Failed to get user profile');
       }
 
-      final userData = userProfileResponse.data as Map<String, dynamic>;
-      final userId = userData['id'];
+      final userId = userProfileResponse.data['id'];
+      if (userId == null) {
+        throw Exception('User ID not found');
+      }
 
       final appointmentData = {
         'userId': userId,
-        'facilityId':
-            healthFacilityId, // Backend expects 'facilityId', not 'healthFacilityId'
+        'healthFacilityId': healthFacilityId,
         'healthWorkerId': healthWorkerId,
         'appointmentType': appointmentType,
         'scheduledDate': scheduledDate.toIso8601String(),
-        'durationMinutes': durationMinutes ?? 30,
+        'durationMinutes': durationMinutes,
         'reason': reason,
         'notes': notes,
         'status': 'SCHEDULED',
@@ -131,13 +123,13 @@ class AppointmentService {
       final response = await _apiService.createAppointment(appointmentData);
 
       if (response.success && response.data != null) {
-        // Handle different response formats
         Map<String, dynamic> appointmentJson;
         if (response.data is Map<String, dynamic>) {
           appointmentJson = response.data['appointment'] ?? response.data;
         } else {
           appointmentJson = response.data;
         }
+
         return Appointment.fromJson(appointmentJson);
       } else {
         throw Exception(response.message ?? 'Failed to create appointment');
@@ -160,12 +152,15 @@ class AppointmentService {
     try {
       final updateData = <String, dynamic>{};
 
-      if (appointmentType != null)
+      if (appointmentType != null) {
         updateData['appointmentType'] = appointmentType;
-      if (scheduledDate != null)
+      }
+      if (scheduledDate != null) {
         updateData['scheduledDate'] = scheduledDate.toIso8601String();
-      if (durationMinutes != null)
+      }
+      if (durationMinutes != null) {
         updateData['durationMinutes'] = durationMinutes;
+      }
       if (reason != null) updateData['reason'] = reason;
       if (notes != null) updateData['notes'] = notes;
       if (status != null) updateData['status'] = status;
@@ -176,13 +171,13 @@ class AppointmentService {
       );
 
       if (response.success && response.data != null) {
-        // Handle different response formats
         Map<String, dynamic> appointmentJson;
         if (response.data is Map<String, dynamic>) {
           appointmentJson = response.data['appointment'] ?? response.data;
         } else {
           appointmentJson = response.data;
         }
+
         return Appointment.fromJson(appointmentJson);
       } else {
         throw Exception(response.message ?? 'Failed to update appointment');
@@ -208,20 +203,12 @@ class AppointmentService {
   /// Cancel appointment (patient and health worker roles)
   Future<bool> cancelAppointment(int appointmentId, String? reason) async {
     try {
-      print(
-        'DEBUG: Cancelling appointment $appointmentId with reason: $reason',
-      );
-      // Use the DELETE endpoint for cancelling appointments
       final response = await _apiService.deleteAppointment(
         appointmentId,
         reason: reason,
       );
-      print(
-        'DEBUG: Cancel response: ${response.success}, message: ${response.message}',
-      );
       return response.success;
     } catch (e) {
-      print('DEBUG: Cancel error: $e');
       throw Exception('Failed to cancel appointment: $e');
     }
   }
@@ -242,18 +229,11 @@ class AppointmentService {
     DateTime newScheduledDate,
   ) async {
     try {
-      print(
-        'DEBUG: Rescheduling appointment $appointmentId to $newScheduledDate',
-      );
-      final result = await updateAppointment(
+      return await updateAppointment(
         appointmentId,
         scheduledDate: newScheduledDate,
-        status: 'SCHEDULED', // Keep as SCHEDULED for the new appointment time
       );
-      print('DEBUG: Reschedule successful: ${result.id}');
-      return result;
     } catch (e) {
-      print('DEBUG: Reschedule error: $e');
       throw Exception('Failed to reschedule appointment: $e');
     }
   }
@@ -280,7 +260,6 @@ class AppointmentService {
       );
 
       if (response.success && response.data != null) {
-        // Handle different response formats
         List<dynamic> timeSlotsJson;
         if (response.data is Map<String, dynamic>) {
           timeSlotsJson =
@@ -313,7 +292,6 @@ class AppointmentService {
       );
 
       if (response.success && response.data != null) {
-        // Handle different response formats
         List<dynamic> timeSlotsJson;
         if (response.data is Map<String, dynamic>) {
           timeSlotsJson =
@@ -357,7 +335,14 @@ class AppointmentService {
       final response = await _apiService.createTimeSlot(timeSlotData);
 
       if (response.success && response.data != null) {
-        return TimeSlot.fromJson(response.data);
+        Map<String, dynamic> timeSlotJson;
+        if (response.data is Map<String, dynamic>) {
+          timeSlotJson = response.data['timeSlot'] ?? response.data;
+        } else {
+          timeSlotJson = response.data;
+        }
+
+        return TimeSlot.fromJson(timeSlotJson);
       } else {
         throw Exception(response.message ?? 'Failed to create time slot');
       }
@@ -378,18 +363,29 @@ class AppointmentService {
     try {
       final updateData = <String, dynamic>{};
 
-      if (startTime != null)
+      if (startTime != null) {
         updateData['startTime'] = startTime.toIso8601String();
-      if (endTime != null) updateData['endTime'] = endTime.toIso8601String();
+      }
+      if (endTime != null) {
+        updateData['endTime'] = endTime.toIso8601String();
+      }
       if (isAvailable != null) updateData['isAvailable'] = isAvailable;
       if (reason != null) updateData['reason'] = reason;
-      if (maxAppointments != null)
+      if (maxAppointments != null) {
         updateData['maxAppointments'] = maxAppointments;
+      }
 
       final response = await _apiService.updateTimeSlot(timeSlotId, updateData);
 
       if (response.success && response.data != null) {
-        return TimeSlot.fromJson(response.data);
+        Map<String, dynamic> timeSlotJson;
+        if (response.data is Map<String, dynamic>) {
+          timeSlotJson = response.data['timeSlot'] ?? response.data;
+        } else {
+          timeSlotJson = response.data;
+        }
+
+        return TimeSlot.fromJson(timeSlotJson);
       } else {
         throw Exception(response.message ?? 'Failed to update time slot');
       }
@@ -405,63 +401,6 @@ class AppointmentService {
       return response.success;
     } catch (e) {
       throw Exception('Failed to delete time slot: $e');
-    }
-  }
-
-  // ==================== HELPER METHODS ====================
-
-  /// Get appointment types
-  List<Map<String, String>> getAppointmentTypes() {
-    return [
-      {'value': 'CONSULTATION', 'label': 'General Consultation'},
-      {'value': 'FAMILY_PLANNING', 'label': 'Family Planning'},
-      {'value': 'PRENATAL_CARE', 'label': 'Prenatal Care'},
-      {'value': 'POSTNATAL_CARE', 'label': 'Postnatal Care'},
-      {'value': 'VACCINATION', 'label': 'Vaccination'},
-      {'value': 'HEALTH_SCREENING', 'label': 'Health Screening'},
-      {'value': 'FOLLOW_UP', 'label': 'Follow-up Visit'},
-      {'value': 'EMERGENCY', 'label': 'Emergency'},
-      {'value': 'COUNSELING', 'label': 'Health Counseling'},
-      {'value': 'OTHER', 'label': 'Other'},
-    ];
-  }
-
-  /// Get appointment statuses
-  List<Map<String, String>> getAppointmentStatuses() {
-    return [
-      {'value': 'SCHEDULED', 'label': 'Scheduled'},
-      {'value': 'CONFIRMED', 'label': 'Confirmed'},
-      {'value': 'IN_PROGRESS', 'label': 'In Progress'},
-      {'value': 'COMPLETED', 'label': 'Completed'},
-      {'value': 'CANCELLED', 'label': 'Cancelled'},
-      {'value': 'NO_SHOW', 'label': 'No Show'},
-      {'value': 'RESCHEDULED', 'label': 'Rescheduled'},
-    ];
-  }
-
-  /// Check if user can perform action based on role
-  bool canPerformAction(
-    String action,
-    String userRole, {
-    bool isOwner = false,
-  }) {
-    switch (action) {
-      case 'create_appointment':
-        return userRole == 'CLIENT';
-      case 'view_appointments':
-        return true; // All roles can view their own appointments
-      case 'update_appointment':
-        return userRole == 'CLIENT' && isOwner || userRole == 'HEALTH_WORKER';
-      case 'cancel_appointment':
-        return userRole == 'CLIENT' && isOwner || userRole == 'HEALTH_WORKER';
-      case 'delete_appointment':
-        return userRole == 'ADMIN' || (userRole == 'CLIENT' && isOwner);
-      case 'manage_time_slots':
-        return userRole == 'HEALTH_WORKER' || userRole == 'ADMIN';
-      case 'update_appointment_status':
-        return userRole == 'HEALTH_WORKER' || userRole == 'ADMIN';
-      default:
-        return false;
     }
   }
 }

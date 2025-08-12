@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../models/api_response.dart';
+import 'network_service.dart';
 
 /// Comprehensive Family Planning API Service with Full CRUD Operations
 /// Handles all backend communication for the family planning platform
@@ -17,15 +18,19 @@ class ApiService {
   /// Get the Dio instance for direct access
   Dio get dio => _dio;
 
-  /// Initialize the API service
-  void initialize() {
+  /// Initialize the API service with dynamic network detection
+  Future<void> initialize() async {
     if (!AppConfig.isInitialized) {
       throw StateError(
         'AppConfig must be initialized before initializing ApiService',
       );
     }
 
-    final baseUrl = AppConfig.baseUrl;
+    // Initialize network service for dynamic endpoint detection
+    await NetworkService.instance.initialize();
+
+    // Use dynamic URL if available, fallback to config
+    final baseUrl = NetworkService.instance.currentBaseUrl ?? AppConfig.baseUrl;
     debugPrint('🔵 Initializing Family Planning API Service');
     debugPrint('🔵 Base URL: $baseUrl');
 
@@ -46,6 +51,7 @@ class ApiService {
     _dio.interceptors.add(_createLoggingInterceptor());
     _dio.interceptors.add(_createAuthInterceptor());
     _dio.interceptors.add(_createErrorInterceptor());
+    _dio.interceptors.add(_createNetworkRetryInterceptor());
   }
 
   /// Set authentication token
@@ -651,8 +657,22 @@ class ApiService {
   Future<ApiResponse> getAssignedClients(int healthWorkerId) async {
     try {
       final response = await _dio.get('/health-worker/$healthWorkerId/clients');
-      return ApiResponse.fromJson(response.data);
+      debugPrint('✅ [getAssignedClients] Success Response: ${response.data}');
+      return ApiResponse.fromJson(_safeResponseData(response.data));
     } catch (e) {
+      if (e is DioException) {
+        debugPrint(
+          '❌ [getAssignedClients] DioException: ${e.response?.statusCode} - ${e.response?.data}',
+        );
+        if (e.response?.statusCode == 403) {
+          debugPrint(
+            "🚨 Access Denied: You don't have permission to view clients.",
+          );
+          return ApiResponse.success(data: {'success': true, 'clients': []});
+        }
+      } else {
+        debugPrint('❌ [getAssignedClients] Error: $e');
+      }
       return _handleError(e);
     }
   }
@@ -664,38 +684,33 @@ class ApiService {
         '/health-worker/$healthWorkerId/dashboard/stats',
       );
 
-      // Special handling for health worker dashboard stats response
-      // Backend returns: {"success": true, "stats": {...}}
-      // But ApiResponse expects: {"success": true, "data": {...}}
-      Map<String, dynamic> responseData;
+      debugPrint(
+        '✅ [getHealthWorkerDashboardStats] Success Response: ${response.data}',
+      );
 
-      if (response.data is String) {
-        responseData = json.decode(response.data);
-      } else if (response.data is Map) {
-        responseData = Map<String, dynamic>.from(response.data);
-      } else {
-        responseData = {'success': false, 'message': 'Invalid response format'};
-      }
-
-      if (responseData.containsKey('stats')) {
-        // Move stats to data field for consistent parsing
-        responseData['data'] = responseData['stats'];
+      // Handle the special case where backend returns stats directly
+      final responseData = _safeResponseData(response.data);
+      if (responseData.containsKey('stats') &&
+          responseData.containsKey('success')) {
+        // Backend format: {"stats": {...}, "success": true}
+        // Convert to expected format: {"success": true, "data": {...}}
+        return ApiResponse.success(data: responseData['stats']);
       }
 
       return ApiResponse.fromJson(responseData);
     } catch (e) {
-      // Handle 403 errors gracefully by returning mock data
-      if (e.toString().contains('403')) {
-        return ApiResponse.success(
-          data: {
-            'totalClients': 0,
-            'todayAppointments': 0,
-            'pendingAppointments': 0,
-            'completedAppointments': 0,
-            'totalAppointments': 0,
-            'message': 'Dashboard data not available',
-          },
+      if (e is DioException) {
+        debugPrint(
+          '❌ [getHealthWorkerDashboardStats] DioException: ${e.response?.statusCode} - ${e.response?.data}',
         );
+        if (e.response?.statusCode == 403) {
+          debugPrint(
+            "🚨 Access Denied: You don't have permission to view dashboard stats.",
+          );
+          return ApiResponse.error(
+            message: 'Access denied. Please check your authentication.',
+          );
+        }
       }
       return _handleError(e);
     }
@@ -705,17 +720,34 @@ class ApiService {
   Future<ApiResponse> getHealthWorkerClients(int healthWorkerId) async {
     try {
       final response = await _dio.get('/health-worker/$healthWorkerId/clients');
-      return ApiResponse.fromJson(_safeResponseData(response.data));
+
+      debugPrint(
+        '✅ [getHealthWorkerClients] Success Response: ${response.data}',
+      );
+
+      // Handle the special case where backend returns clients directly
+      final responseData = _safeResponseData(response.data);
+      if (responseData.containsKey('clients') &&
+          responseData.containsKey('success')) {
+        // Backend format: {"clients": [...], "success": true}
+        // Convert to expected format: {"success": true, "data": [...]}
+        return ApiResponse.success(data: responseData['clients']);
+      }
+
+      return ApiResponse.fromJson(responseData);
     } catch (e) {
-      // Handle 403 errors gracefully by returning empty clients
-      if (e.toString().contains('403')) {
-        return ApiResponse.success(
-          data: {
-            'success': true,
-            'clients': [],
-            'message': 'No clients assigned',
-          },
+      if (e is DioException) {
+        debugPrint(
+          '❌ [getHealthWorkerClients] DioException: ${e.response?.statusCode} - ${e.response?.data}',
         );
+        if (e.response?.statusCode == 403) {
+          debugPrint(
+            "🚨 Access Denied: You don't have permission to view clients.",
+          );
+          return ApiResponse.error(
+            message: 'Access denied. Please check your authentication.',
+          );
+        }
       }
       return _handleError(e);
     }
@@ -736,17 +768,35 @@ class ApiService {
         '/health-worker/$healthWorkerId/appointments',
         queryParameters: queryParams,
       );
-      return ApiResponse.fromJson(_safeResponseData(response.data));
+      debugPrint(
+        '✅ [getHealthWorkerAppointments] Success Response: ${response.data}',
+      );
+
+      // Handle the special case where backend returns appointments directly
+      final responseData = _safeResponseData(response.data);
+      if (responseData.containsKey('appointments') &&
+          responseData.containsKey('success')) {
+        // Backend format: {"appointments": [...], "success": true}
+        // Convert to expected format: {"success": true, "data": [...]}
+        return ApiResponse.success(data: responseData['appointments']);
+      }
+
+      return ApiResponse.fromJson(responseData);
     } catch (e) {
-      // Handle 403 errors gracefully by returning empty appointments
-      if (e.toString().contains('403')) {
-        return ApiResponse.success(
-          data: {
-            'success': true,
-            'appointments': [],
-            'message': 'No appointments available',
-          },
+      if (e is DioException) {
+        debugPrint(
+          '❌ [getHealthWorkerAppointments] DioException: ${e.response?.statusCode} - ${e.response?.data}',
         );
+        if (e.response?.statusCode == 403) {
+          debugPrint(
+            "🚨 Access Denied: You don't have permission to view appointments.",
+          );
+          return ApiResponse.error(
+            message: 'Access denied. Please check your authentication.',
+          );
+        }
+      } else {
+        debugPrint('❌ [getHealthWorkerAppointments] Error: $e');
       }
       return _handleError(e);
     }
@@ -1322,9 +1372,7 @@ class ApiService {
   /// Get side effect reports for a specific user
   Future<ApiResponse> getUserSideEffects(int userId) async {
     try {
-      final response = await _dio.get(
-        '/contraception-side-effects/user/$userId',
-      );
+      final response = await _dio.get('/side-effect-reports/user/$userId');
       return ApiResponse.fromJson(_safeResponseData(response.data));
     } catch (e) {
       return _handleError(e);
@@ -1346,8 +1394,8 @@ class ApiService {
   /// Get all side effect reports (Health Worker only)
   Future<ApiResponse> getAllSideEffects() async {
     try {
-      final response = await _dio.get('/contraception-side-effects');
-      return ApiResponse.fromJson(response.data);
+      final response = await _dio.get('/side-effect-reports');
+      return ApiResponse.fromJson(_safeResponseData(response.data));
     } catch (e) {
       return _handleError(e);
     }
@@ -1356,11 +1404,8 @@ class ApiService {
   /// Create a new side effect report
   Future<ApiResponse> createSideEffectReport(Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post(
-        '/contraception-side-effects',
-        data: data,
-      );
-      return ApiResponse.fromJson(response.data);
+      final response = await _dio.post('/side-effect-reports', data: data);
+      return ApiResponse.fromJson(_safeResponseData(response.data));
     } catch (e) {
       return _handleError(e);
     }
@@ -1373,10 +1418,10 @@ class ApiService {
   ) async {
     try {
       final response = await _dio.put(
-        '/contraception-side-effects/$reportId',
+        '/side-effect-reports/$reportId',
         data: data,
       );
-      return ApiResponse.fromJson(response.data);
+      return ApiResponse.fromJson(_safeResponseData(response.data));
     } catch (e) {
       return _handleError(e);
     }
@@ -1385,10 +1430,8 @@ class ApiService {
   /// Delete a side effect report
   Future<ApiResponse> deleteSideEffectReport(int reportId) async {
     try {
-      final response = await _dio.delete(
-        '/contraception-side-effects/$reportId',
-      );
-      return ApiResponse.fromJson(response.data);
+      final response = await _dio.delete('/side-effect-reports/$reportId');
+      return ApiResponse.fromJson(_safeResponseData(response.data));
     } catch (e) {
       return _handleError(e);
     }
@@ -1534,11 +1577,21 @@ class ApiService {
   // ==================== APPOINTMENTS ENDPOINTS ====================
 
   /// Get appointments
-  Future<ApiResponse> getAppointments({int page = 0, int size = 20}) async {
+  Future<ApiResponse> getAppointments({
+    int page = 0,
+    int size = 20,
+    String? status,
+    String? date,
+  }) async {
     try {
+      final queryParams = <String, dynamic>{'page': page, 'size': size};
+
+      if (status != null) queryParams['status'] = status;
+      if (date != null) queryParams['date'] = date;
+
       final response = await _dio.get(
         '/appointments',
-        queryParameters: {'page': page, 'size': size},
+        queryParameters: queryParams,
       );
       return ApiResponse.fromJson(response.data);
     } catch (e) {
@@ -2341,7 +2394,7 @@ class ApiService {
 
   // ==================== NOTIFICATIONS ENDPOINTS ====================
 
-  /// Get notifications
+  /// Get notifications for current user
   Future<ApiResponse> getNotifications({
     int page = 0,
     int size = 20,
@@ -2349,13 +2402,52 @@ class ApiService {
     String? type,
   }) async {
     try {
-      final queryParams = <String, dynamic>{'page': page, 'size': size};
+      // Get current user ID from profile
+      final userProfile = await getUserProfile();
+      if (!userProfile.success || userProfile.data == null) {
+        return ApiResponse(
+          success: false,
+          message: 'Failed to get user profile',
+          data: null,
+        );
+      }
+
+      final userId = userProfile.data['id'];
+      final queryParams = <String, dynamic>{
+        'userId': userId,
+        'page': page,
+        'limit': size,
+      };
       if (unreadOnly != null) queryParams['unreadOnly'] = unreadOnly;
       if (type != null) queryParams['type'] = type;
 
       final response = await _dio.get(
         '/notifications',
         queryParameters: queryParams,
+      );
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Get unread notifications count
+  Future<ApiResponse> getUnreadNotificationsCount() async {
+    try {
+      // Get current user ID from profile
+      final userProfile = await getUserProfile();
+      if (!userProfile.success || userProfile.data == null) {
+        return ApiResponse(
+          success: false,
+          message: 'Failed to get user profile',
+          data: null,
+        );
+      }
+
+      final userId = userProfile.data['id'];
+      final response = await _dio.get(
+        '/notifications/unread',
+        queryParameters: {'userId': userId},
       );
       return ApiResponse.fromJson(response.data);
     } catch (e) {
@@ -2421,6 +2513,120 @@ class ApiService {
       final response = await _dio.put(
         '/notifications/settings',
         data: settingsData,
+      );
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // ==================== NOTIFICATION MANAGEMENT ENDPOINTS ====================
+
+  /// Create notification (Health Worker and Admin only)
+  Future<ApiResponse> createNotificationForUser({
+    required int userId,
+    required String title,
+    required String message,
+    String type = 'GENERAL',
+    int priority = 2,
+    String? actionUrl,
+    String? icon,
+    DateTime? scheduledFor,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final notificationData = {
+        'userId': userId,
+        'title': title,
+        'message': message,
+        'notificationType': type,
+        'priority': priority,
+        if (actionUrl != null) 'actionUrl': actionUrl,
+        if (icon != null) 'icon': icon,
+        if (scheduledFor != null)
+          'scheduledFor': scheduledFor.toIso8601String(),
+        if (metadata != null) 'metadata': metadata,
+      };
+
+      final response = await _dio.post(
+        '/notifications/create',
+        data: notificationData,
+      );
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Send notification to multiple users (Health Worker and Admin only)
+  Future<ApiResponse> sendNotificationToUsers({
+    required List<int> userIds,
+    required String title,
+    required String message,
+    String type = 'GENERAL',
+    int priority = 2,
+    String? actionUrl,
+    String? icon,
+    DateTime? scheduledFor,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final notificationData = {
+        'userIds': userIds,
+        'title': title,
+        'message': message,
+        'notificationType': type,
+        'priority': priority,
+        if (actionUrl != null) 'actionUrl': actionUrl,
+        if (icon != null) 'icon': icon,
+        if (scheduledFor != null)
+          'scheduledFor': scheduledFor.toIso8601String(),
+        if (metadata != null) 'metadata': metadata,
+      };
+
+      final response = await _dio.post(
+        '/notifications/send-multiple',
+        data: notificationData,
+      );
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Get notifications by type for current user
+  Future<ApiResponse> getNotificationsByType(String type) async {
+    try {
+      // Get current user ID from profile
+      final userProfile = await getUserProfile();
+      if (!userProfile.success || userProfile.data == null) {
+        return ApiResponse(
+          success: false,
+          message: 'Failed to get user profile',
+          data: null,
+        );
+      }
+
+      final userId = userProfile.data['id'];
+      final response = await _dio.get(
+        '/notifications/types/$type',
+        queryParameters: {'userId': userId},
+      );
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Get sent notifications (Health Worker and Admin only)
+  Future<ApiResponse> getSentNotifications({
+    int page = 0,
+    int size = 20,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/notifications/sent',
+        queryParameters: {'page': page, 'size': size},
       );
       return ApiResponse.fromJson(response.data);
     } catch (e) {
@@ -2522,6 +2728,40 @@ class ApiService {
     return InterceptorsWrapper(
       onError: (error, handler) {
         debugPrint('🔴 API Error: ${error.message}');
+        handler.next(error);
+      },
+    );
+  }
+
+  /// Create network retry interceptor for dynamic endpoint switching
+  Interceptor _createNetworkRetryInterceptor() {
+    return InterceptorsWrapper(
+      onError: (error, handler) async {
+        if (error.type == DioExceptionType.connectionError ||
+            error.type == DioExceptionType.connectionTimeout) {
+          debugPrint(
+            '🔄 Network error detected, trying to find new endpoint...',
+          );
+
+          // Try to refresh endpoint
+          await NetworkService.instance.refreshEndpoint();
+          final newBaseUrl = NetworkService.instance.currentBaseUrl;
+
+          if (newBaseUrl != null && newBaseUrl != _dio.options.baseUrl) {
+            debugPrint('🔄 Switching to new endpoint: $newBaseUrl');
+            _dio.options.baseUrl = newBaseUrl;
+
+            // Retry the request with new endpoint
+            try {
+              final response = await _dio.fetch(error.requestOptions);
+              handler.resolve(response);
+              return;
+            } catch (retryError) {
+              debugPrint('🔄 Retry failed: $retryError');
+            }
+          }
+        }
+
         handler.next(error);
       },
     );
@@ -2662,9 +2902,95 @@ class ApiService {
   }
 
   /// Send message
-  Future<ApiResponse> sendMessage(Map<String, dynamic> messageData) async {
+  Future<ApiResponse> sendMessage({
+    required int senderId,
+    required int receiverId,
+    String? content,
+    String? conversationId,
+    String messageType = 'TEXT',
+    String priority = 'NORMAL',
+    bool isEmergency = false,
+    String? audioUrl,
+    int? audioDuration,
+    int? quotedMessageId,
+    bool isForwarded = false,
+    String? forwardedFrom,
+  }) async {
     try {
-      final response = await _dio.post('/messages', data: messageData);
+      final data = {
+        'senderId': senderId,
+        'receiverId': receiverId,
+        'conversationId': conversationId,
+        'messageType': messageType,
+        'priority': priority,
+        'isEmergency': isEmergency,
+        'isForwarded': isForwarded,
+      };
+
+      // Add optional fields only if they have values
+      if (content != null) data['content'] = content;
+      if (audioUrl != null) data['audioUrl'] = audioUrl;
+      if (audioDuration != null) data['audioDuration'] = audioDuration;
+      if (quotedMessageId != null) data['quotedMessageId'] = quotedMessageId;
+      if (forwardedFrom != null) data['forwardedFrom'] = forwardedFrom;
+
+      final response = await _dio.post('/messages', data: data);
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Upload audio file for voice message
+  Future<ApiResponse> uploadAudioMessage({
+    required String filePath,
+    required int senderId,
+    required int receiverId,
+    int? duration,
+    String? conversationId,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath),
+        'senderId': senderId,
+        'receiverId': receiverId,
+        'duration': duration,
+        'conversationId': conversationId,
+      });
+
+      final response = await _dio.post('/audio/upload', data: formData);
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Update message status (delivered, read)
+  Future<ApiResponse> updateMessageStatus({
+    required int messageId,
+    required String status,
+  }) async {
+    try {
+      final response = await _dio.put(
+        '/messages/$messageId/status',
+        data: {'status': status},
+      );
+      return ApiResponse.fromJson(response.data);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Add reaction to message
+  Future<ApiResponse> addMessageReaction({
+    required int messageId,
+    required String reaction,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/messages/$messageId/reaction',
+        data: {'reaction': reaction},
+      );
       return ApiResponse.fromJson(response.data);
     } catch (e) {
       return _handleError(e);
@@ -2701,13 +3027,57 @@ class ApiService {
     int page = 0,
     int size = 50,
   }) async {
+    debugPrint(
+      '🔥 getConversation called with userId1=$userId1, userId2=$userId2',
+    );
     try {
+      debugPrint('🔥 About to make API call...');
       final response = await _dio.get(
         '/messages/conversation/$userId1/$userId2',
         queryParameters: {'page': page, 'size': size},
       );
-      return ApiResponse.fromJson(response.data);
+      debugPrint('🔥 API call completed, processing response...');
+
+      // Special handling for conversation response
+      // Backend returns: {"success": true, "messages": [...], "totalPages": 1, "totalElements": 5, "currentPage": 0}
+      // But ApiResponse expects: {"success": true, "data": {...}}
+      Map<String, dynamic> responseData;
+
+      debugPrint('🔍 Raw response.data type: ${response.data.runtimeType}');
+      debugPrint('🔍 Raw response.data: ${response.data}');
+
+      if (response.data is String) {
+        responseData = json.decode(response.data);
+        debugPrint('🔍 Parsed from String: $responseData');
+      } else if (response.data is Map<String, dynamic>) {
+        responseData = Map<String, dynamic>.from(response.data);
+        debugPrint('🔍 Converted from Map: $responseData');
+      } else {
+        responseData = {'success': false, 'message': 'Invalid response format'};
+        debugPrint('🔍 Invalid format, using default: $responseData');
+      }
+
+      debugPrint('🔍 Response data keys: ${responseData.keys.toList()}');
+      debugPrint(
+        '🔍 Contains messages: ${responseData.containsKey('messages')}',
+      );
+
+      if (responseData.containsKey('messages')) {
+        debugPrint('🔍 Moving messages to data field...');
+        // Move all conversation data to data field for consistent parsing
+        responseData['data'] = {
+          'messages': responseData['messages'],
+          'totalPages': responseData['totalPages'],
+          'totalElements': responseData['totalElements'],
+          'currentPage': responseData['currentPage'],
+        };
+        debugPrint('🔍 Final responseData: $responseData');
+      }
+
+      debugPrint('🔍 About to call ApiResponse.fromJson with: $responseData');
+      return ApiResponse.fromJson(responseData);
     } catch (e) {
+      debugPrint('🔥 Exception in getConversation: $e');
       return _handleError(e);
     }
   }
@@ -2751,7 +3121,17 @@ class ApiService {
         '/messages/unread',
         queryParameters: {'userId': userId},
       );
-      return ApiResponse.fromJson(_safeResponseData(response.data));
+
+      // Handle the special case where backend returns unread data directly
+      final responseData = _safeResponseData(response.data);
+      if (responseData.containsKey('unreadCount') &&
+          responseData.containsKey('success')) {
+        // Backend format: {"unreadCount": 2, "unreadMessages": [...], "success": true}
+        // Convert to expected format: {"success": true, "data": {...}}
+        return ApiResponse.success(data: responseData);
+      }
+
+      return ApiResponse.fromJson(responseData);
     } catch (e) {
       return _handleError(e);
     }

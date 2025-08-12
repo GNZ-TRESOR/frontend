@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import 'libre_translate_service.dart';
 
@@ -430,16 +430,29 @@ class HybridTranslationService {
     String targetLang,
     BuildContext context,
   ) {
-    final localizations = AppLocalizations.of(context);
-    if (localizations == null) return text;
+    // final localizations = AppLocalizations.of(context);
+    // if (localizations == null) return text;
+
+    // Temporarily return original text until localization is properly set up
+    return text;
 
     // Map common English strings to their localization keys
-    final translationMap = _getTranslationMap(localizations);
+    // final translationMap = _getTranslationMap(localizations);
 
-    return translationMap[text] ?? text;
+    // return translationMap[text] ?? text;
+  }
+
+  /// Get all supported languages
+  Future<List<Map<String, String>>> getAllSupportedLanguages() async {
+    return [
+      {'code': 'en', 'name': 'English'},
+      {'code': 'rw', 'name': 'Kinyarwanda'},
+      {'code': 'fr', 'name': 'French'},
+    ];
   }
 
   /// Get translation mapping for local .arb files
+  /*
   Map<String, String> _getTranslationMap(AppLocalizations l) {
     return {
       // Basic UI
@@ -628,4 +641,5 @@ class HybridTranslationService {
               : 'Not supported',
     };
   }
+  */
 }

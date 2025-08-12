@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../utils/network_utils.dart';
 
 /// Environment configuration for different build flavors
 enum Environment { development, staging, production }
@@ -37,7 +38,28 @@ class EnvironmentConfig {
 
     switch (_currentEnvironment) {
       case Environment.development:
-        return 'http://192.168.1.70:8080/api/v1'; // Use machine IP for reliable connectivity
+        return 'http://10.0.2.2:8080/api/v1'; // Android emulator localhost mapping (WiFi-independent)
+      case Environment.staging:
+        return 'https://staging-api.ubuzima.com';
+      case Environment.production:
+        return 'https://api.ubuzima.com';
+    }
+  }
+
+  /// Get dynamic API base URL with automatic IP detection (for development)
+  static Future<String> getDynamicApiBaseUrl() async {
+    if (_overriddenBaseUrl != null) {
+      return _overriddenBaseUrl!;
+    }
+
+    switch (_currentEnvironment) {
+      case Environment.development:
+        // Use dynamic IP detection for development
+        return await NetworkUtils.getDynamicApiUrl(
+          port: 8080,
+          path: '/api/v1',
+          fallbackIP: '10.0.2.2', // Android emulator localhost mapping
+        );
       case Environment.staging:
         return 'https://staging-api.ubuzima.com';
       case Environment.production:

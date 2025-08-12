@@ -57,7 +57,7 @@ class User {
         .toLowerCase()
         .replaceAll('_', '')
         .replaceAll(' ', '');
-    if (normalizedRole == 'healthworker' || normalizedRole == 'healthworker') {
+    if (normalizedRole == 'healthworker' || normalizedRole == 'health_worker') {
       normalizedRole = 'healthworker';
     } else if (normalizedRole == 'admin') {
       normalizedRole = 'admin';

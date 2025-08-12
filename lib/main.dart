@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 // Core imports
 import 'core/config/app_config.dart';
@@ -67,9 +67,7 @@ import 'features/ai_chat/screens/chat_assistant_screen.dart';
 import 'features/clinic_finder/clinic_finder_screen.dart';
 
 // Providers
-import 'core/providers/auth_provider.dart';
 import 'core/providers/language_provider.dart';
-import 'core/models/user.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -104,8 +102,8 @@ Future<void> _initializeServices() async {
     // Initialize storage service
     await StorageService.initialize();
 
-    // Initialize API service
-    ApiService.instance.initialize();
+    // Initialize API service with network detection
+    await ApiService.instance.initialize();
 
     // Initialize TTS service (non-blocking) and set to English
     TTSService()
@@ -144,7 +142,7 @@ class UbuzimaFamilyPlanningApp extends ConsumerWidget {
               ? const Locale('en')
               : currentLocale,
       localizationsDelegates: const [
-        AppLocalizations.delegate,
+        // AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -320,39 +318,8 @@ class DevelopmentHealthWorkerWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Create a mock health worker user for development
-    // Using ID 2 to match the actual health worker in the database
-    final mockUser = User(
-      id: 2,
-      firstName: 'Dr. Marie',
-      lastName: 'Uwimana',
-      email: 'healthworker@ubuzima.rw',
-      role: 'HEALTH_WORKER',
-      status: 'ACTIVE',
-      phoneNumber: '+250788000002',
-      gender: 'FEMALE',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    // Override the auth provider with mock data for development
-    return ProviderScope(
-      overrides: [
-        authProvider.overrideWith((ref) {
-          return MockAuthNotifier(mockUser);
-        }),
-      ],
-      child: const HealthWorkerMainScreen(),
-    );
-  }
-}
-
-/// Mock auth notifier for development
-/// TODO: Remove this in production
-class MockAuthNotifier extends AuthNotifier {
-  MockAuthNotifier(User mockUser) : super() {
-    // Override the state with mock authenticated user
-    state = AuthState(isAuthenticated: true, isLoading: false, user: mockUser);
+    // Use the normal app with real authentication
+    return const UbuzimaFamilyPlanningApp();
   }
 }
 

@@ -21,6 +21,23 @@ class Message {
   final int senderId;
   final List<String>? attachmentUrls;
 
+  // WhatsApp-like features
+  final DateTime? deliveredAt;
+  final int? audioDuration;
+  final String? audioUrl;
+  final int? fileSize;
+  final String? mimeType;
+  final String? thumbnailUrl;
+  final bool? isForwarded;
+  final String? forwardedFrom;
+  final DateTime? editedAt;
+  final DateTime? deletedAt;
+  final bool? deletedForEveryone;
+  final int? quotedMessageId;
+  final String? messageStatus;
+  final String? reaction;
+  final bool? starred;
+
   const Message({
     this.id,
     required this.createdAt,
@@ -38,6 +55,22 @@ class Message {
     required this.receiverId,
     required this.senderId,
     this.attachmentUrls,
+    // WhatsApp-like features
+    this.deliveredAt,
+    this.audioDuration,
+    this.audioUrl,
+    this.fileSize,
+    this.mimeType,
+    this.thumbnailUrl,
+    this.isForwarded,
+    this.forwardedFrom,
+    this.editedAt,
+    this.deletedAt,
+    this.deletedForEveryone,
+    this.quotedMessageId,
+    this.messageStatus,
+    this.reaction,
+    this.starred,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) =>
@@ -62,6 +95,22 @@ class Message {
     int? receiverId,
     int? senderId,
     List<String>? attachmentUrls,
+    // WhatsApp-like features
+    DateTime? deliveredAt,
+    int? audioDuration,
+    String? audioUrl,
+    int? fileSize,
+    String? mimeType,
+    String? thumbnailUrl,
+    bool? isForwarded,
+    String? forwardedFrom,
+    DateTime? editedAt,
+    DateTime? deletedAt,
+    bool? deletedForEveryone,
+    int? quotedMessageId,
+    String? messageStatus,
+    String? reaction,
+    bool? starred,
   }) {
     return Message(
       id: id ?? this.id,
@@ -80,6 +129,22 @@ class Message {
       receiverId: receiverId ?? this.receiverId,
       senderId: senderId ?? this.senderId,
       attachmentUrls: attachmentUrls ?? this.attachmentUrls,
+      // WhatsApp-like features
+      deliveredAt: deliveredAt ?? this.deliveredAt,
+      audioDuration: audioDuration ?? this.audioDuration,
+      audioUrl: audioUrl ?? this.audioUrl,
+      fileSize: fileSize ?? this.fileSize,
+      mimeType: mimeType ?? this.mimeType,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      isForwarded: isForwarded ?? this.isForwarded,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      editedAt: editedAt ?? this.editedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deletedForEveryone: deletedForEveryone ?? this.deletedForEveryone,
+      quotedMessageId: quotedMessageId ?? this.quotedMessageId,
+      messageStatus: messageStatus ?? this.messageStatus,
+      reaction: reaction ?? this.reaction,
+      starred: starred ?? this.starred,
     );
   }
 
@@ -119,13 +184,14 @@ class Message {
     }
   }
 
-  bool get hasAttachments => attachmentUrls != null && attachmentUrls!.isNotEmpty;
-  
+  bool get hasAttachments =>
+      attachmentUrls != null && attachmentUrls!.isNotEmpty;
+
   String get displayContent {
     if (content != null && content!.isNotEmpty) {
       return content!;
     }
-    
+
     switch (messageType) {
       case MessageType.image:
         return '📷 Image';
